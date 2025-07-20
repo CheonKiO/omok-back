@@ -91,6 +91,4 @@ test {
     useJUnitPlatform()
 }
 
-task stage {
-    dependsOn build
-}
+task stage(dependsOn: ['clean', 'build'])
