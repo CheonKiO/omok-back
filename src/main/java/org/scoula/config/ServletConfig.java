@@ -27,8 +27,7 @@ public class ServletConfig implements WebMvcConfigurer {
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("http://localhost:5173")
-                .allowedOrigins("https://cheonkio.github.io")
+                .allowedOrigins("http://localhost:5173","https://cheonkio.github.io")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS");
     }
 
