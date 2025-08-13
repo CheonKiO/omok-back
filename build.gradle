@@ -32,6 +32,9 @@ tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
 }
 
+war {
+    archiveFileName = 'ROOT.war'
+}
 dependencies {
     // Spring Framework 6 (jakarta.* 기반)
     implementation("org.springframework:spring-context:${springVersion}")
@@ -53,8 +56,8 @@ dependencies {
     implementation 'com.fasterxml.jackson.core:jackson-core:2.17.1'
 
     // Jakarta EE 10 의존성
-    compileOnly("jakarta.servlet:jakarta.servlet-api:6.0.0")
-    compileOnly("jakarta.inject:jakarta.inject-api:2.0.1")  // javax → jakarta 전환
+    implementation("jakarta.servlet:jakarta.servlet-api:6.0.0")
+    implementation("jakarta.inject:jakarta.inject-api:2.0.1")  // javax → jakarta 전환
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:${junitVersion}")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${junitVersion}")
@@ -83,7 +86,7 @@ dependencies {
     implementation 'org.yaml:snakeyaml:2.2'
 
     //lombok
-    compileOnly "org.projectlombok:lombok:${lombokVersion}"
+    implementation "org.projectlombok:lombok:${lombokVersion}"
     annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
 }
 
