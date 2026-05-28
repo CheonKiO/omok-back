@@ -79,7 +79,7 @@ public class RoomSocketController {
         System.out.println("after ready: " + room.getReady());
         messagingTemplate.convertAndSend(
                 "/topic/room/" + roomId,
-                RoomResponseMessage.builder().roomId(roomId).type(MessageType.READY).message(sender.getName()).build()
+                RoomResponseMessage.builder().roomId(roomId).sender(sender.getId()).type(MessageType.READY).message(sender.getName()).build()
         );
         if(room.getReady() == 2){
             //방 입장 후 메시지를 전송하기 위한 지연
