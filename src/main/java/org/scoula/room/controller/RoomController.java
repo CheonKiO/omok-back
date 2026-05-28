@@ -2,6 +2,7 @@ package org.scoula.room.controller;
 
 import org.scoula.room.dto.Player;
 import org.scoula.room.dto.Room;
+import org.scoula.room.dto.RoomResponseDto;
 import org.scoula.room.service.RoomService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,13 +22,18 @@ public class RoomController {
     }
 
     @GetMapping("")
-    public ResponseEntity<List<Room>> getRooms() {
-        return ResponseEntity.ok(roomService.getRoomList());
+    public ResponseEntity<List<RoomResponseDto>> getRooms() {
+        List<RoomResponseDto> dtos = roomService.getRoomList().stream()
+                .map(RoomResponseDto::from)
+                .toList();
+        return ResponseEntity.ok(dtos);
     }
 
     @GetMapping("/{roomId}")
     public ResponseEntity<?> getRoomById(@PathVariable String roomId) {
-        return ResponseEntity.ok(roomService.getRoom(roomId));
+        Room room = roomService.getRoom(roomId);
+        if (room == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(RoomResponseDto.from(room));
     }
 
     @PostMapping("/create")

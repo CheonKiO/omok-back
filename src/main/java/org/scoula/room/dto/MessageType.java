@@ -6,7 +6,6 @@ public enum MessageType {
     ACTION,
     GAME_START,
     TIMEOUT,
-    RESPONSE,
     GAME_END,
     ERROR,
     READY,

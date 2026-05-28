@@ -1,5 +1,6 @@
 package org.scoula.room.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
 import java.util.List;
@@ -13,11 +14,9 @@ public class Room {
     private String blackPlayer;
     private int turn;
     private int[][] board;
+    @JsonProperty("isPlaying")
     private boolean isPlaying;
     private int ready;
-
-    private long turnTimerStartTime;  // 현재 턴이 시작된 시각 (밀리초)
-    private int turnLimit;    // 턴마다 정해진 타이머 길이 (예: 30000ms)
 
     public void initGame(String blackPlayer){
         board = new int[15][15];

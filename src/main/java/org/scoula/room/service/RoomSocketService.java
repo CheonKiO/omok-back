@@ -24,7 +24,7 @@ public class RoomSocketService {
 
         // 무작위로 흑백 정하기
         boolean firstIsBlack = Math.random() > 0.5;
-        String blackPlayer = (firstIsBlack ? players.get(0).getId() : players.get(1).getId());
+        String blackPlayer = (firstIsBlack ? players.get(0).id() : players.get(1).id());
         //게임 시작 시 보드와 턴 초기화
         roomService.getRoom(roomId).initGame(blackPlayer);
         RoomResponseMessage message = RoomResponseMessage.builder()

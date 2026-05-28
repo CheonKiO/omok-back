@@ -1,15 +1,14 @@
 package org.scoula.room.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+public record Player(String id, String name) {
 
-@Getter
-@Setter
-@NoArgsConstructor
-@AllArgsConstructor
-public class Player {
-    String id;
-    String name;
+    @Override
+    public boolean equals(Object o) {
+        return o instanceof Player p && id.equals(p.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
 }

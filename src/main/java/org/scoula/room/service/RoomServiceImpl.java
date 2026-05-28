@@ -53,7 +53,7 @@ public class RoomServiceImpl implements RoomService {
         Room room = rooms.get(roomId);
         if (room == null) return false;
 
-        boolean removed = room.getPlayers().removeIf(p -> p.getId().equals(playerId));
+        boolean removed = room.getPlayers().removeIf(p -> p.id().equals(playerId));
         room.setReady(0);
         if(room.getPlayers().isEmpty()) {
             rooms.remove(roomId);
