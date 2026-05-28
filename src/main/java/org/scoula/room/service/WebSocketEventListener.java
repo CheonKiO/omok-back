@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
-import java.util.Objects;
+import java.util.Map;
 
 @Component
 public class WebSocketEventListener {
@@ -26,8 +26,10 @@ public class WebSocketEventListener {
         String sessionId = headerAccessor.getSessionId();
 
         // 퇴장 메시지 브로드캐스트
-        String roomId = (String) Objects.requireNonNull(headerAccessor.getSessionAttributes()).get("roomId");
-        String playerId = (String) headerAccessor.getSessionAttributes().get("playerId");
+        Map<String, Object> attrs = headerAccessor.getSessionAttributes();
+        if (attrs == null) return;
+        String roomId = (String) attrs.get("roomId");
+        String playerId = (String) attrs.get("playerId");
 
         System.out.println("Disconnected from " + sessionId + " room " + roomId + " " + playerId);
         if (roomId != null && playerId != null) {

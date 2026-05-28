@@ -160,8 +160,8 @@ public class RoomSocketController {
         }
 
 
-        // 🔒 금수 검사 - 흑돌만 검사
-        if (index % 2 == 1 && gameService.isForbiddenMove(room, index)) {
+        // 🔒 금수 검사 - 흑돌 턴(홀수 턴)만 검사
+        if (room.getTurn() % 2 == 1 && gameService.isForbiddenMove(room, index)) {
             messagingTemplate.convertAndSend(
                     "/topic/room/" + roomId,
                     RoomResponseMessage.builder().roomId(roomId).type(MessageType.ERROR).message("금수 위치입니다.").build()

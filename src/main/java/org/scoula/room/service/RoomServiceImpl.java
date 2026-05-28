@@ -45,9 +45,6 @@ public class RoomServiceImpl implements RoomService {
             return true; // 이미 참여한 플레이어
         }
         room.getPlayers().add(player);
-        if(room.getPlayers().size() == 2) {
-            room.setPlaying(true);
-        }
         return true;
     }
 
