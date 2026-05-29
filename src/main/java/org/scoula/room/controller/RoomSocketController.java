@@ -12,6 +12,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Controller;
 
+import java.util.Map;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -31,8 +32,11 @@ public class RoomSocketController {
         String roomId = message.roomId();
         log.info("📥 JOIN 요청: {} -> 방 {}", sender, roomId);
 
-        headerAccessor.getSessionAttributes().put("roomId", roomId);
-        headerAccessor.getSessionAttributes().put("playerId", sender.id());
+        Map<String, Object> attrs = headerAccessor.getSessionAttributes();
+        if (attrs != null) {
+            attrs.put("roomId", roomId);
+            attrs.put("playerId", sender.id());
+        }
         messagingTemplate.convertAndSend(
                 "/topic/room/" + roomId,
                 RoomResponseMessage.builder()
