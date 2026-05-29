@@ -66,7 +66,9 @@ public class WebConfig extends AbstractAnnotationConfigDispatcherServletInitiali
         config.setAllowCredentials(false);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
+        // /game/** 은 WebSocketConfig.setAllowedOrigins() 가 처리하므로 제외.
+        // CorsFilter 와 WebSocket CORS 가 동시에 적용되면 헤더 중복으로 브라우저가 거부한다.
+        source.registerCorsConfiguration("/api/**", config);
         return new CorsFilter(source);
     }
 }
