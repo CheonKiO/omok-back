@@ -14,9 +14,11 @@ import java.util.Map;
 public class WebSocketEventListener {
 
     private final SimpMessagingTemplate messagingTemplate;
+    private final RoomService roomService;
 
     public WebSocketEventListener(SimpMessagingTemplate messagingTemplate, RoomService roomService) {
         this.messagingTemplate = messagingTemplate;
+        this.roomService = roomService;
     }
 
     @EventListener
@@ -33,6 +35,7 @@ public class WebSocketEventListener {
 
         System.out.println("Disconnected from " + sessionId + " room " + roomId + " " + playerId);
         if (roomId != null && playerId != null) {
+            roomService.leaveRoom(roomId, playerId);
             messagingTemplate.convertAndSend(
                     "/topic/room/" + roomId,
                     RoomResponseMessage.builder().type(MessageType.LEAVE).sender(playerId).build()

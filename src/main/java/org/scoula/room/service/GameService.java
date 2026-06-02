@@ -91,7 +91,8 @@ public class GameService {
     private boolean hasWinningLine(int[][] board, Position pos, StoneColor color) {
         for (int[] dir : DIRECTIONS) {
             int count = countConsecutiveStones(board, pos, dir[0], dir[1], color);
-            if (count == 5) return true;
+            boolean isWin = color.isBlack() ? count == 5 : count >= 5;
+            if (isWin) return true;
         }
         return false;
     }

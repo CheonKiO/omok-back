@@ -122,6 +122,7 @@ public class RoomSocketController {
                 "/topic/room/" + roomId,
                 RoomResponseMessage.builder()
                         .roomId(roomId)
+                        .sender(sender.id())
                         .type(MessageType.CANCEL)
                         .message(sender.name())
                         .build()
@@ -145,6 +146,16 @@ public class RoomSocketController {
             messagingTemplate.convertAndSend(
                     "/topic/room/" + roomId,
                     RoomResponseMessage.builder().roomId(roomId).type(MessageType.ERROR).message("방이 존재하지 않거나, 게임이 진행중이지 않습니다.").build()
+            );
+            return;
+        }
+
+        boolean isBlackTurn = room.getTurn() % 2 == 1;
+        boolean senderIsBlack = room.getBlackPlayer().equals(sender.id());
+        if (isBlackTurn != senderIsBlack) {
+            messagingTemplate.convertAndSend(
+                    "/topic/room/" + roomId,
+                    RoomResponseMessage.builder().roomId(roomId).type(MessageType.ERROR).message("현재 당신의 차례가 아닙니다.").build()
             );
             return;
         }
