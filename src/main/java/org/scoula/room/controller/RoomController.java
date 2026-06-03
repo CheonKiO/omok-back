@@ -1,11 +1,15 @@
 package org.scoula.room.controller;
 
+import org.scoula.room.dto.MessageType;
 import org.scoula.room.dto.Player;
 import org.scoula.room.dto.Room;
 import org.scoula.room.dto.RoomResponseDto;
+import org.scoula.room.dto.RoomResponseMessage;
 import org.scoula.room.service.RoomService;
+import org.scoula.room.service.WebSocketEventListener;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,9 +20,14 @@ import java.util.List;
 public class RoomController {
 
     private final RoomService roomService;
+    private final SimpMessagingTemplate messagingTemplate;
+    private final WebSocketEventListener webSocketEventListener;
 
-    public RoomController(RoomService roomService) {
+    public RoomController(RoomService roomService, SimpMessagingTemplate messagingTemplate,
+                          WebSocketEventListener webSocketEventListener) {
         this.roomService = roomService;
+        this.messagingTemplate = messagingTemplate;
+        this.webSocketEventListener = webSocketEventListener;
     }
 
     @GetMapping("")
@@ -57,9 +66,16 @@ public class RoomController {
 
     @PostMapping("/leave/{roomId}")
     public ResponseEntity<?> leaveRoom(@PathVariable String roomId, @RequestParam String playerId) {
+        // 유예시간 중이었다면 타이머 취소 (명시적 나가기이므로 즉시 처리)
+        webSocketEventListener.cancelPendingDisconnect(playerId);
+
         boolean left = roomService.leaveRoom(roomId, playerId);
-        System.out.println("remain: " + roomService.getRoom(roomId));
         if (left) {
+            // 상대방에게 LEAVE 즉시 브로드캐스트
+            messagingTemplate.convertAndSend(
+                    "/topic/room/" + roomId,
+                    RoomResponseMessage.builder().type(MessageType.LEAVE).sender(playerId).build()
+            );
             return ResponseEntity.ok("Left the room successfully");
         } else {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Player not found in the room");

@@ -1,6 +1,7 @@
 package org.scoula.room.service;
 
 import org.scoula.room.dto.MessageType;
+import org.scoula.room.dto.Room;
 import org.scoula.room.dto.RoomResponseMessage;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
@@ -9,39 +10,95 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 @Component
 public class WebSocketEventListener {
 
+    private static final int GRACE_PERIOD_SECONDS = 30;
+
     private final SimpMessagingTemplate messagingTemplate;
     private final RoomService roomService;
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);
+    private final ConcurrentHashMap<String, ScheduledFuture<?>> pendingDisconnects = new ConcurrentHashMap<>();
 
     public WebSocketEventListener(SimpMessagingTemplate messagingTemplate, RoomService roomService) {
         this.messagingTemplate = messagingTemplate;
         this.roomService = roomService;
     }
 
+    // RoomSocketController에서 JOIN 수신 시 호출 - 재연결이면 true 반환
+    public boolean cancelPendingDisconnect(String playerId) {
+        ScheduledFuture<?> future = pendingDisconnects.remove(playerId);
+        if (future != null && !future.isDone()) {
+            future.cancel(false);
+            return true;
+        }
+        return false;
+    }
+
     @EventListener
     public void handleWebSocketDisconnectListener(SessionDisconnectEvent event) {
         StompHeaderAccessor headerAccessor = StompHeaderAccessor.wrap(event.getMessage());
-        // 필요하다면, 세션 ID로 유저 정보 찾아오기
         String sessionId = headerAccessor.getSessionId();
 
-        // 퇴장 메시지 브로드캐스트
         Map<String, Object> attrs = headerAccessor.getSessionAttributes();
         if (attrs == null) return;
         String roomId = (String) attrs.get("roomId");
         String playerId = (String) attrs.get("playerId");
 
-        System.out.println("Disconnected from " + sessionId + " room " + roomId + " " + playerId);
-        if (roomId != null && playerId != null) {
+        if (roomId == null || playerId == null) return;
+
+        Room room = roomService.getRoom(roomId);
+        if (room == null) return;
+
+        // 이미 HTTP leave API로 정상 퇴장한 경우 무시
+        boolean isStillInRoom = room.getPlayers().stream().anyMatch(p -> p.id().equals(playerId));
+        if (!isStillInRoom) {
+            System.out.println("🛑 정상 퇴장 후 소켓 종료 (무시): " + sessionId);
+            return;
+        }
+
+        if (room.isPlaying()) {
+            // 게임 중 연결 끊김 → 유예 시간 부여
+            System.out.println("⏳ 게임 중 연결 끊김, " + GRACE_PERIOD_SECONDS + "초 유예: " + playerId);
+            messagingTemplate.convertAndSend(
+                    "/topic/room/" + roomId,
+                    RoomResponseMessage.builder()
+                            .type(MessageType.DISCONNECTED)
+                            .sender(playerId)
+                            .build()
+            );
+
+            ScheduledFuture<?> future = scheduler.schedule(() -> {
+                pendingDisconnects.remove(playerId);
+                roomService.leaveRoom(roomId, playerId);
+                messagingTemplate.convertAndSend(
+                        "/topic/room/" + roomId,
+                        RoomResponseMessage.builder()
+                                .type(MessageType.LEAVE)
+                                .sender(playerId)
+                                .build()
+                );
+                System.out.println("⏰ 유예시간 만료, 퇴장 처리: " + playerId);
+            }, GRACE_PERIOD_SECONDS, TimeUnit.SECONDS);
+
+            pendingDisconnects.put(playerId, future);
+        } else {
+            // 게임 중이 아닐 때 → 즉시 퇴장
             roomService.leaveRoom(roomId, playerId);
             messagingTemplate.convertAndSend(
                     "/topic/room/" + roomId,
-                    RoomResponseMessage.builder().type(MessageType.LEAVE).sender(playerId).build()
+                    RoomResponseMessage.builder()
+                            .type(MessageType.LEAVE)
+                            .sender(playerId)
+                            .build()
             );
+            System.out.println("🛑 소켓 종료 (비게임): " + sessionId);
         }
-
-        System.out.println("🛑 웹소켓 연결 종료: 세션 " + sessionId);
     }
 }

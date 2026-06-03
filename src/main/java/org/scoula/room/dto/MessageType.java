@@ -10,5 +10,7 @@ public enum MessageType {
     ERROR,
     READY,
     CANCEL,
-    SURRENDER
+    SURRENDER,
+    DISCONNECTED,
+    RECONNECT
 }

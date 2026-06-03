@@ -6,6 +6,7 @@ import org.scoula.room.dto.*;
 import org.scoula.room.service.GameService;
 import org.scoula.room.service.RoomService;
 import org.scoula.room.service.RoomSocketService;
+import org.scoula.room.service.WebSocketEventListener;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -25,6 +26,7 @@ public class RoomSocketController {
     private final RoomService roomService;
     private final GameService gameService;
     private final RoomSocketService roomSocketService;
+    private final WebSocketEventListener webSocketEventListener;
 
     @MessageMapping("/room/{roomId}/join")
     public void joinRoom(@Payload RoomRequestMessage message, StompHeaderAccessor headerAccessor) {
@@ -32,17 +34,23 @@ public class RoomSocketController {
         String roomId = message.roomId();
         log.info("📥 JOIN 요청: {} -> 방 {}", sender, roomId);
 
+        boolean isReconnect = webSocketEventListener.cancelPendingDisconnect(sender.id());
+
         Map<String, Object> attrs = headerAccessor.getSessionAttributes();
         if (attrs != null) {
             attrs.put("roomId", roomId);
             attrs.put("playerId", sender.id());
         }
+
+        MessageType type = isReconnect ? MessageType.RECONNECT : MessageType.JOIN;
+        log.info(isReconnect ? "🔄 재연결: {}" : "📥 신규 입장: {}", sender.name());
+
         messagingTemplate.convertAndSend(
                 "/topic/room/" + roomId,
                 RoomResponseMessage.builder()
                         .sender(sender.id())
                         .roomId(roomId)
-                        .type(MessageType.JOIN)
+                        .type(type)
                         .message(sender.name())
                         .build()
         );

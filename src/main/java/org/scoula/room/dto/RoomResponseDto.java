@@ -10,7 +10,8 @@ public record RoomResponseDto(
         List<Player> players,
         int turn,
         int[] board,
-        @JsonProperty("isPlaying") boolean isPlaying
+        @JsonProperty("isPlaying") boolean isPlaying,
+        String blackPlayer
 ) {
     public static RoomResponseDto from(Room room) {
         int[][] board2d = room.getBoard();
@@ -24,7 +25,8 @@ public record RoomResponseDto(
                 room.getPlayers(),
                 room.getTurn(),
                 board1d,
-                room.isPlaying()
+                room.isPlaying(),
+                room.getBlackPlayer()
         );
     }
 }
