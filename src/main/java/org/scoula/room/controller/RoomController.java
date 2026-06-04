@@ -1,5 +1,6 @@
 package org.scoula.room.controller;
 
+import lombok.extern.slf4j.Slf4j;
 import org.scoula.room.dto.MessageType;
 import org.scoula.room.dto.Player;
 import org.scoula.room.dto.Room;
@@ -15,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 
+@Slf4j
 @RestController
 @RequestMapping("/api/rooms")
 public class RoomController {
@@ -51,8 +53,10 @@ public class RoomController {
             @RequestParam(required = false) String password) {
         Room room = roomService.createRoom(title, password);
         if (room == null) {
+            log.error("[ROOM_CREATE_FAIL] title=\"{}\"", title);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to create room");
         }
+        log.info("[ROOM_CREATE] title=\"{}\" roomId={} private={}", title, room.getRoomId(), password != null && !password.isBlank());
         return ResponseEntity.ok(room.getRoomId());
     }
 
@@ -63,26 +67,35 @@ public class RoomController {
             @RequestParam(required = false) String password) {
         int result = roomService.joinRoom(roomId, player, password);
         return switch (result) {
-            case  1 -> ResponseEntity.ok("Joined successfully");
-            case -1 -> ResponseEntity.status(HttpStatus.FORBIDDEN).body("Wrong password");
-            default -> ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Room full or not found");
+            case 1 -> {
+                log.info("[JOIN] player=\"{}\"({}) roomId={}", player.name(), player.id(), roomId);
+                yield ResponseEntity.ok("Joined successfully");
+            }
+            case -1 -> {
+                log.warn("[JOIN_FAIL] reason=WRONG_PASSWORD player=\"{}\" roomId={}", player.name(), roomId);
+                yield ResponseEntity.status(HttpStatus.FORBIDDEN).body("Wrong password");
+            }
+            default -> {
+                log.warn("[JOIN_FAIL] reason=UNAVAILABLE player=\"{}\" roomId={}", player.name(), roomId);
+                yield ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Room full or not found");
+            }
         };
     }
 
     @PostMapping("/leave/{roomId}")
     public ResponseEntity<?> leaveRoom(@PathVariable String roomId, @RequestParam String playerId) {
-        // 유예시간 중이었다면 타이머 취소 (명시적 나가기이므로 즉시 처리)
         webSocketEventListener.cancelPendingDisconnect(playerId);
 
         boolean left = roomService.leaveRoom(roomId, playerId);
         if (left) {
-            // 상대방에게 LEAVE 즉시 브로드캐스트
+            log.info("[LEAVE] playerId={} roomId={}", playerId, roomId);
             messagingTemplate.convertAndSend(
                     "/topic/room/" + roomId,
                     RoomResponseMessage.builder().type(MessageType.LEAVE).sender(playerId).build()
             );
             return ResponseEntity.ok("Left the room successfully");
         } else {
+            log.warn("[LEAVE_FAIL] playerId={} roomId={}", playerId, roomId);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Player not found in the room");
         }
     }

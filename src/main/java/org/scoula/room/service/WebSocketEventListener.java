@@ -3,6 +3,7 @@ package org.scoula.room.service;
 import org.scoula.room.dto.MessageType;
 import org.scoula.room.dto.Room;
 import org.scoula.room.dto.RoomResponseMessage;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Component;
@@ -16,6 +17,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Component
 public class WebSocketEventListener {
 
@@ -59,13 +61,13 @@ public class WebSocketEventListener {
         // 이미 HTTP leave API로 정상 퇴장한 경우 무시
         boolean isStillInRoom = room.getPlayers().stream().anyMatch(p -> p.id().equals(playerId));
         if (!isStillInRoom) {
-            System.out.println("🛑 정상 퇴장 후 소켓 종료 (무시): " + sessionId);
+            log.debug("[WS_CLOSE] 정상 퇴장 후 소켓 종료 (무시) sessionId={}", sessionId);
             return;
         }
 
         if (room.isPlaying()) {
             // 게임 중 연결 끊김 → 유예 시간 부여
-            System.out.println("⏳ 게임 중 연결 끊김, " + GRACE_PERIOD_SECONDS + "초 유예: " + playerId);
+            log.warn("[WS_DISCONNECT] playerId={} roomId={} grace={}s", playerId, roomId, GRACE_PERIOD_SECONDS);
             messagingTemplate.convertAndSend(
                     "/topic/room/" + roomId,
                     RoomResponseMessage.builder()
@@ -84,7 +86,7 @@ public class WebSocketEventListener {
                                 .sender(playerId)
                                 .build()
                 );
-                System.out.println("⏰ 유예시간 만료, 퇴장 처리: " + playerId);
+                log.warn("[GRACE_EXPIRE] playerId={} roomId={}", playerId, roomId);
             }, GRACE_PERIOD_SECONDS, TimeUnit.SECONDS);
 
             pendingDisconnects.put(playerId, future);
@@ -98,7 +100,7 @@ public class WebSocketEventListener {
                             .sender(playerId)
                             .build()
             );
-            System.out.println("🛑 소켓 종료 (비게임): " + sessionId);
+            log.info("[WS_DISCONNECT] playerId={} roomId={} reason=NOT_PLAYING", playerId, roomId);
         }
     }
 }

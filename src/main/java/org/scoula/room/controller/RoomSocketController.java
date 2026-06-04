@@ -31,7 +31,7 @@ public class RoomSocketController {
         String roomId = message.roomId();
 
         boolean isReconnect = webSocketEventListener.cancelPendingDisconnect(sender.id());
-        log.info(isReconnect ? "🔄 재연결: {}" : "📥 신규 입장: {}", sender.name());
+        log.info("[WS_JOIN] player=\"{}\"({}) roomId={} reconnect={}", sender.name(), sender.id(), roomId, isReconnect);
 
         Map<String, Object> attrs = headerAccessor.getSessionAttributes();
         if (attrs != null) {
@@ -51,37 +51,34 @@ public class RoomSocketController {
 
     @MessageMapping("/ready")
     public void handleReady(@Payload RoomRequestMessage message) {
-        log.info("🎮 READY 수신: {}", message);
+        log.info("[READY] player=\"{}\" roomId={}", message.sender().name(), message.roomId());
         roomSocketService.processReady(message.roomId(), message.sender());
     }
 
     @MessageMapping("/cancel")
     public void handleCancel(@Payload RoomRequestMessage message) {
-        log.info("🎮 CANCEL 수신: {}", message);
+        log.info("[CANCEL] player=\"{}\" roomId={}", message.sender().name(), message.roomId());
         roomSocketService.processCancel(message.roomId(), message.sender());
     }
 
     @MessageMapping("/surrender")
     public void handleSurrender(@Payload RoomRequestMessage message) {
         if (message.type() != MessageType.SURRENDER) return;
-        log.info("🎮 SURRENDER 수신: {}", message);
         roomSocketService.processSurrender(message.roomId(), message.sender());
     }
 
     @MessageMapping("/timeout")
     public void timeout(@Payload RoomRequestMessage message) {
         if (message.type() != MessageType.TIMEOUT) return;
-        log.info("TIMEOUT 수신: {}", message);
         roomSocketService.processTimeout(message.roomId(), message.sender());
     }
 
     @MessageMapping("/move")
     public void handleMove(@Payload RoomRequestMessage message) {
         if (message.type() != MessageType.ACTION || message.index() == null) {
-            log.warn("❗️부적절한 move 메시지: {}", message);
+            log.warn("[MOVE_INVALID] player=\"{}\" roomId={}", message.sender().name(), message.roomId());
             return;
         }
-        log.info("🎮 ACTION 수신: roomId={}, index={}", message.roomId(), message.index());
         roomSocketService.processMove(message.roomId(), message.sender(), message.index());
     }
 }

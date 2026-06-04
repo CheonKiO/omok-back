@@ -1,19 +1,55 @@
 <configuration>
-    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+
+    <!-- 서버(Tomcat): catalina.home/logs, 로컬 개발: ~/omok-logs -->
+    <property name="LOG_DIR" value="${catalina.home:-${user.home}/omok-logs}"/>
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss} %-5level [%logger{25}] %msg%n"/>
+
+    <!-- 콘솔 (개발용) -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>%d{HH:mm:ss} %-5level %logger{25} - %msg%n</pattern>
         </encoder>
     </appender>
 
-    <!-- SQL 로그만 출력 -->
-    <logger name="jdbc.sqlonly" level="DEBUG" additivity="false">
-        <appender-ref ref="STDOUT" />
-    </logger>
-    <logger name="jdbc.sqltiming" level="DEBUG" additivity="false">
-        <appender-ref ref="STDOUT" />
+    <!-- 앱 로그: INFO 이상, 날짜별 롤링, 30일 보관 -->
+    <appender name="APP_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/omok-app.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/omok-app.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 에러 로그: ERROR만, 날짜별 롤링, 60일 보관 -->
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_DIR}/omok-error.log</file>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_DIR}/omok-error.%d{yyyy-MM-dd}.log.gz</fileNamePattern>
+            <maxHistory>60</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 앱 패키지: DEBUG까지 파일에 기록 -->
+    <logger name="org.scoula" level="DEBUG" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="APP_FILE"/>
+        <appender-ref ref="ERROR_FILE"/>
     </logger>
 
-    <root level="INFO">
-        <appender-ref ref="STDOUT" />
+    <!-- Spring/Tomcat 등 외부 라이브러리: WARN 이상만 -->
+    <root level="WARN">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="APP_FILE"/>
+        <appender-ref ref="ERROR_FILE"/>
     </root>
+
 </configuration>

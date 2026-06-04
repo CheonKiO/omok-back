@@ -32,13 +32,18 @@ public class RoomSocketService {
         if (players.size() != 2) return;
 
         boolean firstIsBlack = Math.random() > 0.5;
-        String blackPlayer = firstIsBlack ? players.get(0).id() : players.get(1).id();
-        room.initGame(blackPlayer);
+        String blackId = firstIsBlack ? players.get(0).id() : players.get(1).id();
+        String blackName = firstIsBlack ? players.get(0).name() : players.get(1).name();
+        String whiteName = firstIsBlack ? players.get(1).name() : players.get(0).name();
+        room.initGame(blackId);
+
+        log.info("[GAME_START] roomId={} title=\"{}\" black=\"{}\" white=\"{}\"",
+                roomId, room.getTitle(), blackName, whiteName);
 
         broadcast(roomId, RoomResponseMessage.builder()
                 .roomId(roomId)
                 .type(MessageType.GAME_START)
-                .blackPlayer(blackPlayer)
+                .blackPlayer(blackId)
                 .message("게임이 시작되었습니다")
                 .build());
     }
@@ -82,6 +87,7 @@ public class RoomSocketService {
         room.setPlaying(false);
         room.setReady(0);
 
+        log.info("[SURRENDER] roomId={} player=\"{}\"", roomId, sender.name());
         broadcast(roomId, RoomResponseMessage.builder()
                 .roomId(roomId)
                 .type(MessageType.GAME_END)
@@ -94,6 +100,7 @@ public class RoomSocketService {
         if (room == null) return;
         room.setPlaying(false);
 
+        log.info("[TIMEOUT] roomId={} player=\"{}\"", roomId, sender.name());
         broadcast(roomId, RoomResponseMessage.builder()
                 .roomId(roomId)
                 .type(MessageType.GAME_END)
@@ -140,6 +147,7 @@ public class RoomSocketService {
         if (gameService.checkGameEnd(room, index)) {
             room.setPlaying(false);
             room.setReady(0);
+            log.info("[GAME_WIN] roomId={} winner=\"{}\" turn={}", roomId, sender.name(), turn);
             broadcast(roomId, RoomResponseMessage.builder()
                     .roomId(roomId)
                     .type(MessageType.GAME_END)
