@@ -146,11 +146,11 @@ public class GameService {
                 ),
                 new Pattern(
                         new int[]{0, 1, 2, 3, 4},
-                        new boolean[]{false, true, true, false, true}
+                        new boolean[]{true, false, true, true, true}
                 ),
                 new Pattern(
                         new int[]{0, 1, 2, 3, 4},
-                        new boolean[]{true, false, true, true, true}
+                        new boolean[]{true, true, true, false, true}
                 ),
                 new Pattern(
                         new int[]{-1, 0, 1, 2},
@@ -195,29 +195,38 @@ public class GameService {
     private int countOpenThreeInDirection(int[][] board, Position pos, int dx, int dy) {
         int count = 0;
 
-        Pattern[] patterns = {
-                new Pattern(
-                        new int[]{-2, -1, 0, 1, 2},
-                        new boolean[]{false, true, true, true, false}
-                ),
+        // ○ ● C ● ○ : 대칭 패턴 — sign 루프 없이 1번만 체크 (양 sign 모두 같은 위치를 검사해 2번 카운트되는 버그 방지)
+        if (hasPattern(board, pos, dx, dy, new Pattern(
+                new int[]{-2, -1, 0, 1, 2},
+                new boolean[]{false, true, true, true, false}
+        ))) {
+            count++;
+        }
+
+        // 비대칭 패턴 — sign 루프로 방향 양쪽 체크
+        Pattern[] asymmetricPatterns = {
+                // ○ C ● ● ○  /  ○ ● ● C ○
                 new Pattern(
                         new int[]{-1, 0, 1, 2, 3},
                         new boolean[]{false, true, true, true, false}
                 ),
+                // ○ C ● ○ ● ○  /  ○ ● ○ ● C ○
                 new Pattern(
                         new int[]{-1, 0, 1, 2, 3, 4},
                         new boolean[]{false, true, true, false, true, false}
                 ),
+                // ○ C ○ ● ● ○  /  ○ ● ● ○ C ○
                 new Pattern(
                         new int[]{-1, 0, 1, 2, 3, 4},
                         new boolean[]{false, true, false, true, true, false}
                 ),
+                // ○ ● C ○ ● ○  /  ○ ● ○ C ● ○
                 new Pattern(
-                        new int[]{-2, -1, 0, 1, 2},
+                        new int[]{-2, -1, 0, 1, 2, 3},
                         new boolean[]{false, true, true, false, true, false}
                 )
         };
-        for (Pattern pattern : patterns) {
+        for (Pattern pattern : asymmetricPatterns) {
             for (int sign : new int[]{-1, 1}) {
                 if (hasPattern(board, pos, dx * sign, dy * sign, pattern)) {
                     count++;
@@ -239,12 +248,12 @@ public class GameService {
     }
 
     private boolean hasPattern(int[][] board, Position center, int dx, int dy, Pattern pattern) {
-
         for (int i = 0; i < pattern.offsets.length; i++) {
             Position checkPos = center.move(dx, dy, pattern.offsets[i]);
+            if (!checkPos.isValid()) return false; // 보드 바깥은 벽 — 흑도 빈 칸도 아님
             StoneColor stone = getStoneAt(board, checkPos);
 
-            if (pattern.shouldBeBlack[i]) { // 검은 돌이어야만 한다.
+            if (pattern.shouldBeBlack[i]) {
                 if (!stone.isBlack()) return false;
             } else {
                 if (!stone.isEmpty()) return false;
