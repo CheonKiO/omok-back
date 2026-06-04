@@ -41,5 +41,6 @@ jobs:
           command_timeout: 60s
           script: |
             cp ~/ROOT.war /home/ubuntu/tomcat10/webapps/ROOT.war
-            nohup bash -c 'sudo pkill -f "Bootstrap start" 2>/dev/null || true; sleep 6; sudo /home/ubuntu/tomcat10/bin/startup.sh > /tmp/tomcat-start.log 2>&1' > /dev/null 2>&1 &
-            sleep 3
+            sudo pkill -f "Bootstrap start" 2>/dev/null || true
+            sleep 6
+            sudo /home/ubuntu/tomcat10/bin/startup.sh
