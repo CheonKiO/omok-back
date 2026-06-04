@@ -1,0 +1,45 @@
+name: Deploy Backend
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build WAR
+        run: ./gradlew build -x test
+
+      - name: Copy WAR to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: 158.180.91.135
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: build/libs/ROOT.war
+          target: /home/ubuntu/
+          strip_components: 2
+
+      - name: Deploy and restart Tomcat
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 158.180.91.135
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            sudo pkill -f catalina || true
+            sleep 6
+            cp ~/ROOT.war /home/ubuntu/tomcat10/webapps/ROOT.war
+            sudo /home/ubuntu/tomcat10/bin/startup.sh
