@@ -10,6 +10,7 @@ import java.util.List;
 public class Room {
     private String title;
     private String roomId;
+    private String password;
     private List<Player> players;
     private String blackPlayer;
     private int turn;

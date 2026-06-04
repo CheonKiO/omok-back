@@ -7,6 +7,7 @@ import java.util.List;
 public record RoomResponseDto(
         String title,
         String roomId,
+        boolean hasPassword,
         List<Player> players,
         int turn,
         int[] board,
@@ -22,6 +23,7 @@ public record RoomResponseDto(
         return new RoomResponseDto(
                 room.getTitle(),
                 room.getRoomId(),
+                room.getPassword() != null && !room.getPassword().isBlank(),
                 room.getPlayers(),
                 room.getTurn(),
                 board1d,

@@ -18,34 +18,35 @@ public class RoomServiceImpl implements RoomService {
     }
 
     @Override
-    public Room createRoom(String title) {
+    public Room createRoom(String title, String password) {
         int SIZE = 15;
-        int[][] board = new int[SIZE][SIZE]; // 자동 0 초기화
+        int[][] board = new int[SIZE][SIZE];
         Room room = Room.builder()
                 .title(title)
                 .roomId(UUID.randomUUID().toString())
+                .password(password != null && !password.isBlank() ? password : null)
                 .players(new CopyOnWriteArrayList<>())
                 .turn(1)
                 .board(board)
                 .isPlaying(false)
                 .build();
         rooms.put(room.getRoomId(), room);
-
         return room;
     }
+
     @Override
-    public boolean joinRoom(String roomId, Player player) {
+    public int joinRoom(String roomId, Player player, String password) {
         Room room = rooms.get(roomId);
-        // 방이 없거나, 꽉찼다면 false
-        if (room == null || room.getPlayers().size() == 2) {
-            return false;
+        if (room == null || room.getPlayers().size() == 2) return 0;
+
+        // 비밀방 비밀번호 검증
+        if (room.getPassword() != null) {
+            if (password == null || !room.getPassword().equals(password)) return -1;
         }
 
-        if (room.getPlayers().contains(player)) {
-            return true; // 이미 참여한 플레이어
-        }
+        if (room.getPlayers().contains(player)) return 1; // 이미 참여
         room.getPlayers().add(player);
-        return true;
+        return 1;
     }
 
     @Override

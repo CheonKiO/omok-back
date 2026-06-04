@@ -46,8 +46,10 @@ public class RoomController {
     }
 
     @PostMapping("/create")
-    public ResponseEntity<?> createRoom(@RequestParam String title) {
-        Room room = roomService.createRoom(title);
+    public ResponseEntity<?> createRoom(
+            @RequestParam String title,
+            @RequestParam(required = false) String password) {
+        Room room = roomService.createRoom(title, password);
         if (room == null) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to create room");
         }
@@ -55,13 +57,16 @@ public class RoomController {
     }
 
     @PostMapping("/join/{roomId}")
-    public ResponseEntity<?> joinRoom(@PathVariable String roomId, @RequestBody Player player) {
-        boolean joined = roomService.joinRoom(roomId, player);
-        if (joined) {
-            return ResponseEntity.ok("Joined successfully");
-        } else {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Room full or not found");
-        }
+    public ResponseEntity<?> joinRoom(
+            @PathVariable String roomId,
+            @RequestBody Player player,
+            @RequestParam(required = false) String password) {
+        int result = roomService.joinRoom(roomId, player, password);
+        return switch (result) {
+            case  1 -> ResponseEntity.ok("Joined successfully");
+            case -1 -> ResponseEntity.status(HttpStatus.FORBIDDEN).body("Wrong password");
+            default -> ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Room full or not found");
+        };
     }
 
     @PostMapping("/leave/{roomId}")
