@@ -39,7 +39,8 @@ jobs:
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            sudo pkill -f catalina || true
+            sudo pkill -f "Bootstrap start" 2>/dev/null || true
             sleep 6
             cp ~/ROOT.war /home/ubuntu/tomcat10/webapps/ROOT.war
-            sudo /home/ubuntu/tomcat10/bin/startup.sh
+            nohup sudo /home/ubuntu/tomcat10/bin/startup.sh > /tmp/tomcat-start.log 2>&1 &
+            disown
