@@ -41,5 +41,4 @@ jobs:
           command_timeout: 60s
           script: |
             cp ~/ROOT.war /home/ubuntu/tomcat10/webapps/ROOT.war
-            setsid bash -c 'sudo pkill -f "Bootstrap start" 2>/dev/null; sleep 6; sudo /home/ubuntu/tomcat10/bin/startup.sh' </dev/null >/tmp/tomcat-ci.log 2>&1 &
-            sleep 3
+            sudo systemctl restart tomcat
