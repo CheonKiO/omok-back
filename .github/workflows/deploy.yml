@@ -19,26 +19,27 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build WAR
-        run: ./gradlew build -x test
+      - name: Build JAR (테스트 포함 — 실패 시 배포 중단)
+        run: ./gradlew clean build
 
-      - name: Copy WAR to server
+      - name: Copy JAR to server
         uses: appleboy/scp-action@v0.1.7
         with:
           host: 158.180.91.135
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: build/libs/ROOT.war
+          source: build/libs/ROOT.jar
           target: /home/ubuntu/
           strip_components: 2
 
-      - name: Deploy and restart Tomcat
+      - name: Deploy and restart app
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: 158.180.91.135
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 60s
+          command_timeout: 90s
           script: |
-            cp ~/ROOT.war /home/ubuntu/tomcat10/webapps/ROOT.war
-            sudo systemctl restart tomcat
+            sudo systemctl restart omok
+            # 헬스체크 — 부팅 실패 시 배포를 실패 처리 (green CI / dead prod 방지)
+            curl --retry 30 --retry-delay 2 --retry-connrefused -fsS http://localhost:8080/api/rooms > /dev/null
