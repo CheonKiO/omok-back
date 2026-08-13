@@ -3,6 +3,7 @@ package org.scoula.room.service;
 import org.junit.jupiter.api.Test;
 import org.scoula.room.dto.Room;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -77,5 +78,69 @@ class GameServiceTest {
         int[][] b = board();
         black(b, 7, 7);
         assertFalse(forbidden(b, 5, 5), "고립된 착수는 금수가 아니다");
+    }
+
+    private int openThrees(int[][] b, int x, int y) {
+        return gameService.countOpenThrees(b, idx(x, y));
+    }
+
+    // ── 오탐: 사(four)인 모양은 삼(three)으로 세지 않는다 (BLOCKER3) ──
+    // 행: ●_●●● (x2, 빈 x3, x4,x5,x6). x3을 채우면 x2~x6 = 정확히 5목 → 이건 사다.
+    // 사이므로 open-three로 세면 안 된다.
+    @Test
+    void fourShapeIsNotCountedAsOpenThree() {
+        int[][] b = board();
+        black(b, 2, 7);
+        black(b, 4, 7);
+        black(b, 5, 7);
+        black(b, 6, 7);
+        assertEquals(0, openThrees(b, 5, 7),
+                "빈칸 채우면 5목이 되는 사는 삼으로 세지 않는다");
+    }
+
+    // ── 가드: 진짜 열린 삼은 1개로 센다 ──
+    // 행: _●●●_ (x4,x5,x6 흑, x3·x7 빈). x3 또는 x7에 두면 열린 사가 된다.
+    @Test
+    void genuineOpenThreeCountsAsOne() {
+        int[][] b = board();
+        black(b, 4, 7);
+        black(b, 5, 7);
+        black(b, 6, 7);
+        assertEquals(1, openThrees(b, 5, 7), "고립된 열린 삼은 정확히 1개");
+    }
+
+    // ── 가드: 진짜 3-3은 금수 유지 ──
+    // 가로 _●C●_ 와 세로 _●C●_ 가 착수점에서 교차 → 열린 삼 2개.
+    @Test
+    void genuineDoubleThreeIsForbidden() {
+        int[][] b = board();
+        black(b, 6, 7);
+        black(b, 8, 7); // 가로: x6 _ x8, x7 착수 → _●●●_
+        black(b, 7, 6);
+        black(b, 7, 8); // 세로: y6 _ y8, y7 착수 → _●●●_
+        assertTrue(forbidden(b, 7, 7), "가로 삼 + 세로 삼 = 진짜 3-3, 금수여야 한다");
+    }
+
+    // ── 가드: 정확히 5목을 만드는 수는 금수보다 승리 우선 ──
+    @Test
+    void movingToFiveIsNeverForbidden() {
+        int[][] b = board();
+        black(b, 3, 7);
+        black(b, 4, 7);
+        black(b, 6, 7);
+        black(b, 7, 7); // x3,x4,_,x6,x7 → x5 착수 시 x3~x7 = 5목
+        assertFalse(forbidden(b, 5, 7), "5목 완성 수는 금수가 아니다(승리 우선)");
+    }
+
+    // ── 가드: 흑의 6목(장목)은 금수 ──
+    @Test
+    void overlineIsForbiddenForBlack() {
+        int[][] b = board();
+        black(b, 2, 7);
+        black(b, 3, 7);
+        black(b, 4, 7);
+        black(b, 6, 7);
+        black(b, 7, 7); // x2,x3,x4,_,x6,x7 → x5 착수 시 x2~x7 = 6목
+        assertTrue(forbidden(b, 5, 7), "흑 6목(장목)은 금수");
     }
 }

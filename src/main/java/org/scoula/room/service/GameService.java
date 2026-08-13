@@ -158,80 +158,57 @@ public class GameService {
         int openThreeCount = 0;
 
         for (int[] dir : DIRECTIONS) {
-            openThreeCount += countOpenThreeInDirection(board, pos, dir[0], dir[1]);
+            if (hasOpenThreeInDirection(board, pos, dir[0], dir[1])) {
+                openThreeCount++;
+            }
         }
 
         return openThreeCount;
     }
 
-    private int countOpenThreeInDirection(int[][] board, Position pos, int dx, int dy) {
-        int count = 0;
+    // 이 방향으로 '열린 삼'이 성립하는지 검사.
+    // 열린 삼 = 빈 칸 하나를 채우면 '열린 사(_●●●●_)'가 되는 모양.
+    // 단, 이미 사(four)인 모양은 삼으로 세지 않는다(사 > 삼).
+    private boolean hasOpenThreeInDirection(int[][] board, Position pos, int dx, int dy) {
+        if (hasFourInDirection(board, pos, dx, dy)) return false;
 
-        // ○ ● C ● ○ : 대칭 패턴 — sign 루프 없이 1번만 체크 (양 sign 모두 같은 위치를 검사해 2번 카운트되는 버그 방지)
-        if (hasPattern(board, pos, dx, dy, new Pattern(
-                new int[]{-2, -1, 0, 1, 2},
-                new boolean[]{false, true, true, true, false}
-        ))) {
+        for (int d = -4; d <= 4; d++) {
+            if (d == 0) continue;
+            Position empty = pos.move(dx, dy, d);
+            if (!empty.isValid()) continue;
+            if (!getStoneAt(board, empty).isEmpty()) continue;
+
+            board[empty.y][empty.x] = StoneColor.BLACK.getValue();
+            boolean openFour = formsOpenFour(board, pos, dx, dy);
+            board[empty.y][empty.x] = StoneColor.EMPTY.getValue();
+
+            if (openFour) return true;
+        }
+        return false;
+    }
+
+    // pos를 지나는 연속 흑이 정확히 4목이고, 양끝(연속 바로 바깥)이 모두
+    // 판 안의 빈 칸이면 '열린 사'. 벽에 막힌 4는 열린 사가 아니다.
+    private boolean formsOpenFour(int[][] board, Position pos, int dx, int dy) {
+        int count = 1;
+
+        Position forward = pos.move(dx, dy, 1);
+        while (getStoneAt(board, forward).isBlack()) {
             count++;
+            forward = forward.move(dx, dy, 1);
+        }
+        Position backward = pos.move(dx, dy, -1);
+        while (getStoneAt(board, backward).isBlack()) {
+            count++;
+            backward = backward.move(dx, dy, -1);
         }
 
-        // 비대칭 패턴 — sign 루프로 방향 양쪽 체크
-        Pattern[] asymmetricPatterns = {
-                // ○ C ● ● ○  /  ○ ● ● C ○
-                new Pattern(
-                        new int[]{-1, 0, 1, 2, 3},
-                        new boolean[]{false, true, true, true, false}
-                ),
-                // ○ C ● ○ ● ○  /  ○ ● ○ ● C ○
-                new Pattern(
-                        new int[]{-1, 0, 1, 2, 3, 4},
-                        new boolean[]{false, true, true, false, true, false}
-                ),
-                // ○ C ○ ● ● ○  /  ○ ● ● ○ C ○
-                new Pattern(
-                        new int[]{-1, 0, 1, 2, 3, 4},
-                        new boolean[]{false, true, false, true, true, false}
-                ),
-                // ○ ● C ○ ● ○  /  ○ ● ○ C ● ○
-                new Pattern(
-                        new int[]{-2, -1, 0, 1, 2, 3},
-                        new boolean[]{false, true, true, false, true, false}
-                )
-        };
-        for (Pattern pattern : asymmetricPatterns) {
-            for (int sign : new int[]{-1, 1}) {
-                if (hasPattern(board, pos, dx * sign, dy * sign, pattern)) {
-                    count++;
-                }
-            }
-        }
-
-        return count;
+        if (count != 4) return false;
+        return isEmptyInBounds(board, forward) && isEmptyInBounds(board, backward);
     }
 
-    private static class Pattern {
-        final int[] offsets;
-        final boolean[] shouldBeBlack;
-
-        Pattern(int[] offsets, boolean[] shouldBeBlack) {
-            this.offsets = offsets;
-            this.shouldBeBlack = shouldBeBlack;
-        }
-    }
-
-    private boolean hasPattern(int[][] board, Position center, int dx, int dy, Pattern pattern) {
-        for (int i = 0; i < pattern.offsets.length; i++) {
-            Position checkPos = center.move(dx, dy, pattern.offsets[i]);
-            if (!checkPos.isValid()) return false; // 보드 바깥은 벽 — 흑도 빈 칸도 아님
-            StoneColor stone = getStoneAt(board, checkPos);
-
-            if (pattern.shouldBeBlack[i]) {
-                if (!stone.isBlack()) return false;
-            } else {
-                if (!stone.isEmpty()) return false;
-            }
-        }
-        return true;
+    private boolean isEmptyInBounds(int[][] board, Position p) {
+        return p.isValid() && getStoneAt(board, p).isEmpty();
     }
 
     public void applyMove(Room room, int index) {
