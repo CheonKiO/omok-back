@@ -22,7 +22,9 @@ class AuthServiceTest {
 
     private final UserRepository userRepository = mock(UserRepository.class);
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-    private final AuthService authService = new AuthService(userRepository, passwordEncoder);
+    private final JwtProvider jwtProvider = new JwtProvider(
+            "test-secret-key-that-is-at-least-32-bytes-long!!", 1_800_000, 1_209_600_000);
+    private final AuthService authService = new AuthService(userRepository, passwordEncoder, jwtProvider);
 
     @Test
     void signupHashesPasswordAndSavesUserWithUserRole() {
@@ -48,6 +50,48 @@ class AuthServiceTest {
 
         assertThrows(DuplicateUsernameException.class,
                 () -> authService.signup("kio", "pw", "닉"));
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void loginWithCorrectPasswordReturnsTokensBoundToUser() {
+        User user = User.builder()
+                .id(7L).username("kio").passwordHash(passwordEncoder.encode("correct"))
+                .nickname("키오").role(Role.USER).build();
+        when(userRepository.findByUsername("kio")).thenReturn(java.util.Optional.of(user));
+
+        TokenPair tokens = authService.login("kio", "correct");
+
+        assertEquals("7", jwtProvider.getSubject(tokens.accessToken()));
+        assertEquals(Role.USER, jwtProvider.getRole(tokens.accessToken()));
+        assertEquals("7", jwtProvider.getSubject(tokens.refreshToken()));
+    }
+
+    @Test
+    void loginWithWrongPasswordIsRejected() {
+        User user = User.builder()
+                .id(7L).username("kio").passwordHash(passwordEncoder.encode("correct"))
+                .nickname("n").role(Role.USER).build();
+        when(userRepository.findByUsername("kio")).thenReturn(java.util.Optional.of(user));
+
+        assertThrows(InvalidCredentialsException.class,
+                () -> authService.login("kio", "wrong"));
+    }
+
+    @Test
+    void loginWithUnknownUserIsRejected() {
+        when(userRepository.findByUsername("ghost")).thenReturn(java.util.Optional.empty());
+
+        assertThrows(InvalidCredentialsException.class,
+                () -> authService.login("ghost", "pw"));
+    }
+
+    @Test
+    void guestTokenHasGuestRoleAndNoDbWrite() {
+        String token = authService.guestToken("손님");
+
+        assertEquals(Role.GUEST, jwtProvider.getRole(token));
+        assertTrue(jwtProvider.getSubject(token).startsWith("guest-"));
         verify(userRepository, never()).save(any());
     }
 }
