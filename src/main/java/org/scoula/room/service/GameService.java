@@ -125,60 +125,32 @@ public class GameService {
         int fourCount = 0;
 
         for (int[] dir : DIRECTIONS) {
-            fourCount += countFourInDirection(board, pos, dir[0], dir[1]);
+            if (hasFourInDirection(board, pos, dir[0], dir[1])) {
+                fourCount++;
+            }
         }
 
         return fourCount;
     }
 
-    private int countFourInDirection(int[][] board, Position pos, int dx, int dy) {
-        int count = 0;
+    // 이 방향으로 '사(four)'가 성립하는지 검사.
+    // 사 = 빈 칸 하나를 채우면 '정확히 5목'이 되는 모양. 6목(장목)이 되는 갭이나
+    // 양끝이 막혀 오목이 될 수 없는 모양은 사가 아니다. 한 방향에 최대 1개로 센다.
+    private boolean hasFourInDirection(int[][] board, Position pos, int dx, int dy) {
+        for (int d = -4; d <= 4; d++) {
+            if (d == 0) continue;
+            Position empty = pos.move(dx, dy, d);
+            if (!empty.isValid()) continue;
+            if (!getStoneAt(board, empty).isEmpty()) continue;
 
-        // 4개 패턴 체크를 위한 다양한 위치 조합
-        Pattern[] patterns = {
-                new Pattern(
-                        new int[]{0, 1, 2, 3},
-                        new boolean[]{true, true, true, true}
-                ),
-                new Pattern(
-                        new int[]{0, 1, 2, 3, 4},
-                        new boolean[]{true, true, false, true, true}
-                ),
-                new Pattern(
-                        new int[]{0, 1, 2, 3, 4},
-                        new boolean[]{true, false, true, true, true}
-                ),
-                new Pattern(
-                        new int[]{0, 1, 2, 3, 4},
-                        new boolean[]{true, true, true, false, true}
-                ),
-                new Pattern(
-                        new int[]{-1, 0, 1, 2},
-                        new boolean[]{true, true, true, true}
-                ),
-                new Pattern(
-                        new int[]{-1, 0, 1, 2, 3},
-                        new boolean[]{true, true, false, true, true}
-                ),
-                new Pattern(
-                        new int[]{-1, 0, 1, 2, 3},
-                        new boolean[]{true, true, true, false, true}
-                ),
-                new Pattern(
-                        new int[]{-2, -1, 0, 1, 2},
-                        new boolean[]{true, true, true, false, true}
-                )
-        };
+            // 빈 칸에 임시로 흑을 놓아 pos를 지나는 연속 목수를 센다.
+            board[empty.y][empty.x] = StoneColor.BLACK.getValue();
+            int run = countConsecutiveStones(board, pos, dx, dy, StoneColor.BLACK);
+            board[empty.y][empty.x] = StoneColor.EMPTY.getValue();
 
-        for (Pattern pattern : patterns) {
-            for (int sign : new int[]{-1, 1}) {
-                if (hasPattern(board, pos, dx * sign, dy * sign, pattern)) {
-                    count++;
-                }
-            }
+            if (run == 5) return true; // 정확히 5목 완성 → 사
         }
-
-        return count;
+        return false;
     }
 
     public int countOpenThrees(int[][] board, int index) {
