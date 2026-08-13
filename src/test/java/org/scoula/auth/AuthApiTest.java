@@ -82,6 +82,33 @@ class AuthApiTest {
     }
 
     @Test
+    void refreshThenLogoutRevokesToken() throws Exception {
+        mvc.perform(post("/api/auth/signup").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"flowuser\",\"password\":\"password123\",\"nickname\":\"플로\"}"))
+                .andExpect(status().isCreated());
+        String loginBody = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"username\":\"flowuser\",\"password\":\"password123\"}"))
+                .andReturn().getResponse().getContentAsString();
+        String refresh = objectMapper.readTree(loginBody).get("refreshToken").asText();
+
+        // refresh → 새 access
+        mvc.perform(post("/api/auth/refresh").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + refresh + "\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty());
+
+        // logout → 폐기
+        mvc.perform(post("/api/auth/logout").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + refresh + "\"}"))
+                .andExpect(status().isNoContent());
+
+        // 폐기된 refresh → 401
+        mvc.perform(post("/api/auth/refresh").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"refreshToken\":\"" + refresh + "\"}"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void gameRoomsEndpointStaysPublic() throws Exception {
         mvc.perform(get("/api/rooms")).andExpect(status().isOk());
     }

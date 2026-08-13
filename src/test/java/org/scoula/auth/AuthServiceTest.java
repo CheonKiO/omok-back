@@ -24,7 +24,9 @@ class AuthServiceTest {
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
     private final JwtProvider jwtProvider = new JwtProvider(
             "test-secret-key-that-is-at-least-32-bytes-long!!", 1_800_000, 1_209_600_000);
-    private final AuthService authService = new AuthService(userRepository, passwordEncoder, jwtProvider);
+    private final RefreshTokenRepository refreshTokenRepository = mock(RefreshTokenRepository.class);
+    private final AuthService authService = new AuthService(
+            userRepository, passwordEncoder, jwtProvider, refreshTokenRepository);
 
     @Test
     void signupHashesPasswordAndSavesUserWithUserRole() {
@@ -93,5 +95,54 @@ class AuthServiceTest {
         assertEquals(Role.GUEST, jwtProvider.getRole(token));
         assertTrue(jwtProvider.getSubject(token).startsWith("guest-"));
         verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void loginPersistsRefreshToken() {
+        User user = User.builder()
+                .id(7L).username("kio").passwordHash(passwordEncoder.encode("correct"))
+                .nickname("키오").role(Role.USER).build();
+        when(userRepository.findByUsername("kio")).thenReturn(java.util.Optional.of(user));
+
+        authService.login("kio", "correct");
+
+        verify(refreshTokenRepository).save(any(RefreshToken.class));
+    }
+
+    @Test
+    void refreshWithStoredValidTokenIssuesNewAccess() {
+        String refresh = jwtProvider.createRefreshToken("7");
+        User user = User.builder()
+                .id(7L).username("kio").passwordHash("h").nickname("n").role(Role.USER).build();
+        when(refreshTokenRepository.findByToken(refresh)).thenReturn(java.util.Optional.of(
+                RefreshToken.builder().userId(7L).token(refresh)
+                        .expiresAt(java.time.LocalDateTime.now().plusDays(1)).build()));
+        when(userRepository.findById(7L)).thenReturn(java.util.Optional.of(user));
+
+        TokenPair result = authService.refresh(refresh);
+
+        assertEquals("7", jwtProvider.getSubject(result.accessToken()));
+        assertEquals(Role.USER, jwtProvider.getRole(result.accessToken()));
+    }
+
+    @Test
+    void refreshWithTokenNotInStoreIsRejected() {
+        String refresh = jwtProvider.createRefreshToken("7");
+        when(refreshTokenRepository.findByToken(refresh)).thenReturn(java.util.Optional.empty());
+
+        assertThrows(InvalidTokenException.class, () -> authService.refresh(refresh));
+    }
+
+    @Test
+    void refreshWithTamperedTokenIsRejected() {
+        assertThrows(InvalidTokenException.class,
+                () -> authService.refresh("not-a-valid-jwt"));
+    }
+
+    @Test
+    void logoutDeletesRefreshToken() {
+        authService.logout("some-refresh-token");
+
+        verify(refreshTokenRepository).deleteByToken("some-refresh-token");
     }
 }

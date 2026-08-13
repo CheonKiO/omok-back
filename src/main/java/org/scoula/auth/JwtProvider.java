@@ -64,4 +64,9 @@ public class JwtProvider {
         String role = parse(token).get("role", String.class);
         return role == null ? null : Role.valueOf(role);
     }
+
+    public java.time.LocalDateTime getExpiration(String token) {
+        Date exp = parse(token).getExpiration();
+        return java.time.LocalDateTime.ofInstant(exp.toInstant(), java.time.ZoneId.systemDefault());
+    }
 }

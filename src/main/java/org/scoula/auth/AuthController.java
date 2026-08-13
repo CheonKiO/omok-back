@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.scoula.auth.dto.GuestRequest;
 import org.scoula.auth.dto.LoginRequest;
+import org.scoula.auth.dto.RefreshRequest;
 import org.scoula.auth.dto.SignupRequest;
 import org.scoula.auth.dto.TokenResponse;
 import org.springframework.http.HttpStatus;
@@ -35,5 +36,17 @@ public class AuthController {
     @PostMapping("/guest")
     public TokenResponse guest(@Valid @RequestBody GuestRequest request) {
         return new TokenResponse(authService.guestToken(request.nickname()), null);
+    }
+
+    @PostMapping("/refresh")
+    public TokenResponse refresh(@Valid @RequestBody RefreshRequest request) {
+        TokenPair tokens = authService.refresh(request.refreshToken());
+        return new TokenResponse(tokens.accessToken(), tokens.refreshToken());
+    }
+
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(@Valid @RequestBody RefreshRequest request) {
+        authService.logout(request.refreshToken());
     }
 }

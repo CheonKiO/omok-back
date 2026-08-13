@@ -1,5 +1,6 @@
 package org.scoula.auth;
 
+import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import org.scoula.user.Role;
 import org.scoula.user.User;
@@ -17,6 +18,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Transactional
     public User signup(String username, String rawPassword, String nickname) {
@@ -32,7 +34,7 @@ public class AuthService {
         return userRepository.save(user);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public TokenPair login(String username, String rawPassword) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(InvalidCredentialsException::new);
@@ -40,14 +42,41 @@ public class AuthService {
             throw new InvalidCredentialsException();
         }
         String subject = String.valueOf(user.getId());
-        return new TokenPair(
-                jwtProvider.createAccessToken(subject, user.getRole()),
-                jwtProvider.createRefreshToken(subject));
+        String access = jwtProvider.createAccessToken(subject, user.getRole());
+        String refresh = jwtProvider.createRefreshToken(subject);
+        refreshTokenRepository.save(RefreshToken.builder()
+                .userId(user.getId())
+                .token(refresh)
+                .expiresAt(jwtProvider.getExpiration(refresh))
+                .build());
+        return new TokenPair(access, refresh);
     }
 
     // 게스트: DB 저장 없이 GUEST 역할의 단기 access 토큰만 발급.
     public String guestToken(String nickname) {
         String guestId = "guest-" + UUID.randomUUID();
         return jwtProvider.createAccessToken(guestId, Role.GUEST);
+    }
+
+    @Transactional(readOnly = true)
+    public TokenPair refresh(String refreshToken) {
+        String subject;
+        try {
+            subject = jwtProvider.getSubject(refreshToken); // 서명·만료 검증
+        } catch (JwtException | IllegalArgumentException e) {
+            throw new InvalidTokenException();
+        }
+        // DB에 존재해야 유효 (로그아웃/폐기된 토큰 차단)
+        refreshTokenRepository.findByToken(refreshToken)
+                .orElseThrow(InvalidTokenException::new);
+        User user = userRepository.findById(Long.valueOf(subject))
+                .orElseThrow(InvalidTokenException::new);
+        String access = jwtProvider.createAccessToken(subject, user.getRole());
+        return new TokenPair(access, refreshToken);
+    }
+
+    @Transactional
+    public void logout(String refreshToken) {
+        refreshTokenRepository.deleteByToken(refreshToken);
     }
 }
