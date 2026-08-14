@@ -29,17 +29,20 @@ public class RoomSocketController {
     private final WebSocketEventListener webSocketEventListener;
 
     @MessageMapping("/room/{roomId}/join")
-    public void joinRoom(@Payload RoomRequestMessage message, StompHeaderAccessor headerAccessor) {
+    public void joinRoom(@Payload RoomRequestMessage message, StompHeaderAccessor headerAccessor, Principal principal) {
         Player sender = message.sender();
         String roomId = message.roomId();
 
-        boolean isReconnect = webSocketEventListener.cancelPendingDisconnect(sender.id());
-        log.info("[WS_JOIN] player=\"{}\"({}) roomId={} reconnect={}", sender.name(), sender.id(), roomId, isReconnect);
+        // 재접속 유예 취소는 위조 불가한 principal 앵커로만. payload id는 인가 신원 아님.
+        String principalName = principal != null ? principal.getName() : null;
+        boolean isReconnect = webSocketEventListener.cancelPendingDisconnect(principalName);
+        log.info("[WS_JOIN] player=\"{}\"({}) principal={} roomId={} reconnect={}", sender.name(), sender.id(), principalName, roomId, isReconnect);
 
         Map<String, Object> attrs = headerAccessor.getSessionAttributes();
         if (attrs != null) {
             attrs.put("roomId", roomId);
             attrs.put("playerId", sender.id());
+            if (principalName != null) attrs.put("principal", principalName);
         }
 
         MessageType type = isReconnect ? MessageType.RECONNECT : MessageType.JOIN;

@@ -32,9 +32,11 @@ public class WebSocketEventListener {
         this.roomService = roomService;
     }
 
-    // RoomSocketController에서 JOIN 수신 시 호출 - 재연결이면 true 반환
-    public boolean cancelPendingDisconnect(String playerId) {
-        ScheduledFuture<?> future = pendingDisconnects.remove(playerId);
+    // RoomSocketController/HTTP leave에서 호출 - 유예 창의 앵커는 위조 불가한 principal.
+    // 같은 principal만 자신의 유예를 취소(재접속)할 수 있다. 재연결이면 true 반환.
+    public boolean cancelPendingDisconnect(String principal) {
+        if (principal == null) return false;
+        ScheduledFuture<?> future = pendingDisconnects.remove(principal);
         if (future != null && !future.isDone()) {
             future.cancel(false);
             return true;
@@ -54,6 +56,9 @@ public class WebSocketEventListener {
 
         if (roomId == null || playerId == null) return;
 
+        // 유예 앵커는 CONNECT에서 바인딩된 principal(위조 불가). 이벤트 우선, 없으면 세션 attrs fallback.
+        String principal = event.getUser() != null ? event.getUser().getName() : (String) attrs.get("principal");
+
         Room room = roomService.getRoom(roomId);
         if (room == null) return;
 
@@ -64,9 +69,9 @@ public class WebSocketEventListener {
             return;
         }
 
-        if (room.isPlaying()) {
-            // 게임 중 연결 끊김 → 유예 시간 부여
-            log.warn("[WS_DISCONNECT] playerId={} roomId={} grace={}s", playerId, roomId, GRACE_PERIOD_SECONDS);
+        if (room.isPlaying() && principal != null) {
+            // 게임 중 연결 끊김 → 유예 시간 부여. 유예 앵커는 위조 불가한 principal 키.
+            log.warn("[WS_DISCONNECT] playerId={} principal={} roomId={} grace={}s", playerId, principal, roomId, GRACE_PERIOD_SECONDS);
             roomBroadcaster.broadcast(
                     roomId,
                     RoomResponseMessage.builder()
@@ -75,8 +80,9 @@ public class WebSocketEventListener {
                             .build()
             );
 
+            final String gracePrincipal = principal;
             ScheduledFuture<?> future = scheduler.schedule(() -> {
-                pendingDisconnects.remove(playerId);
+                pendingDisconnects.remove(gracePrincipal);
                 roomService.leaveRoom(roomId, playerId);
                 roomBroadcaster.broadcast(
                         roomId,
@@ -85,10 +91,10 @@ public class WebSocketEventListener {
                                 .sender(playerId)
                                 .build()
                 );
-                log.warn("[GRACE_EXPIRE] playerId={} roomId={}", playerId, roomId);
+                log.warn("[GRACE_EXPIRE] playerId={} principal={} roomId={}", playerId, gracePrincipal, roomId);
             }, GRACE_PERIOD_SECONDS, TimeUnit.SECONDS);
 
-            pendingDisconnects.put(playerId, future);
+            pendingDisconnects.put(principal, future);
         } else {
             // 게임 중이 아닐 때 → 즉시 퇴장
             roomService.leaveRoom(roomId, playerId);

@@ -97,7 +97,7 @@ public class RoomController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Player not found in the room");
         }
 
-        webSocketEventListener.cancelPendingDisconnect(playerId);
+        webSocketEventListener.cancelPendingDisconnect(principal);
 
         boolean left = roomService.leaveRoom(roomId, playerId);
         if (left) {
