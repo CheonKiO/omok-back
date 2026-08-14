@@ -44,6 +44,10 @@ public class RoomServiceImpl implements RoomService {
             if (password == null || !room.getPassword().equals(password)) return -1;
         }
 
+        // 표시용 player.id 중복 방지: 이미 다른 principal이 소유한 id면 거부(자리 오염 차단).
+        String owner = room.principalOf(player.id());
+        if (owner != null && !owner.equals(principal)) return 0;
+
         if (room.getPlayers().contains(player)) {
             room.bindMember(principal, player.id(), player.name()); // 재입장: principal 재확인
             return 1; // 이미 참여

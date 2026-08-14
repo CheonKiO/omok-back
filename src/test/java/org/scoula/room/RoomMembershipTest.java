@@ -6,6 +6,7 @@ import org.scoula.room.domain.Room;
 import org.scoula.room.service.GameService;
 import org.scoula.room.service.RoomBroadcaster;
 import org.scoula.room.service.RoomService;
+import org.scoula.room.service.RoomServiceImpl;
 import org.scoula.room.service.RoomSocketService;
 
 import java.util.List;
@@ -108,5 +109,47 @@ class RoomMembershipTest {
         // 비멤버는 어떤 턴에서도 소유자가 아니다.
         assertFalse(room.isTurnOwner("intruder", 1));
         assertFalse(room.isTurnOwner("intruder", 2));
+    }
+
+    @Test
+    void duplicatePlayerIdJoinIsRejected() {
+        RoomServiceImpl svc = new RoomServiceImpl();
+        Room room = svc.createRoom("t", null);
+        String rid = room.getRoomId();
+
+        assertEquals(1, svc.joinRoom(rid, new Player("vid", "피해자"), null, "user:victim"));
+        // 공격자: 같은 표시용 player.id, 다른 name, 다른 principal → 거부(자리 오염 차단).
+        assertEquals(0, svc.joinRoom(rid, new Player("vid", "공격자"), null, "user:attacker"));
+
+        assertTrue(room.isMember("user:victim"));
+        assertFalse(room.isMember("user:attacker"));
+        assertEquals(1, room.getPlayers().size());
+    }
+
+    @Test
+    void gameStartAlwaysAssignsTwoDistinctSeatPrincipals() {
+        Player p1 = new Player("uuid-A", "A");
+        Player p2 = new Player("uuid-B", "B");
+        Room room = Room.builder()
+                .roomId("room-1")
+                .players(new java.util.concurrent.CopyOnWriteArrayList<>(List.of(p1, p2)))
+                .turn(1)
+                .board(new int[15][15])
+                .build();
+        room.bindMember("user:1", "uuid-A", "A");
+        room.bindMember("user:2", "uuid-B", "B");
+
+        RoomService roomService = mock(RoomService.class);
+        when(roomService.getRoom("room-1")).thenReturn(room);
+        RoomSocketService service = new RoomSocketService(
+                mock(RoomBroadcaster.class), roomService, mock(GameService.class));
+
+        // 랜덤 배정을 여러 번 돌려도 흑≠백 principal 불변.
+        for (int i = 0; i < 30; i++) {
+            service.notifyGameStart("room-1");
+            assertNotNull(room.blackPrincipal());
+            assertNotNull(room.whitePrincipal());
+            assertNotEquals(room.blackPrincipal(), room.whitePrincipal());
+        }
     }
 }

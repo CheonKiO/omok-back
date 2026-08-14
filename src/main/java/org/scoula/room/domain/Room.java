@@ -67,6 +67,16 @@ public class Room {
         return null;
     }
 
+    /** 자리 소유자 principal 목록(자리 = 멤버 principal). 게임 시작 시 흑/백 배정의 유일한 근거. */
+    public List<String> memberPrincipals() {
+        return new java.util.ArrayList<>(playerIdByPrincipal.keySet());
+    }
+
+    /** principal의 표시용 playerId 라벨. 미바인딩이면 null. */
+    public String playerIdOf(String principal) {
+        return principal == null ? null : playerIdByPrincipal.get(principal);
+    }
+
     public String blackPrincipal() {
         return blackPrincipal;
     }

@@ -25,22 +25,34 @@ public class RoomSocketService {
         roomBroadcaster.broadcast(roomId, message);
     }
 
+    /** 표시용: playerId에 대응하는 이름을 players에서 찾는다(로그용). 없으면 id 반환. */
+    private String nameOf(List<Player> players, String playerId) {
+        for (Player p : players) {
+            if (p.id().equals(playerId)) return p.name();
+        }
+        return playerId;
+    }
+
     public void notifyGameStart(String roomId) {
         Room room = roomService.getRoom(roomId);
         synchronized (room) {
             List<Player> players = room.getPlayers();
             if (players.size() != 2) return;
+            // 자리 = 멤버 principal. 흑/백은 서로 다른 두 멤버 principal에서 직접 배정한다
+            // (player.id 역조회를 쓰지 않아 자리 오염/모호성 없음, 흑≠백 보장).
+            List<String> memberPrincipals = room.memberPrincipals();
+            if (memberPrincipals.size() != 2) return;
 
             boolean firstIsBlack = Math.random() > 0.5;
-            Player blackPlayer = firstIsBlack ? players.get(0) : players.get(1);
-            Player whitePlayer = firstIsBlack ? players.get(1) : players.get(0);
-            String blackId = blackPlayer.id();
-            String blackName = blackPlayer.name();
-            String whiteName = whitePlayer.name();
+            String blackPrincipal = firstIsBlack ? memberPrincipals.get(0) : memberPrincipals.get(1);
+            String whitePrincipal = firstIsBlack ? memberPrincipals.get(1) : memberPrincipals.get(0);
+            // 표시용 blackPlayer(player.id)는 선택된 흑 principal의 라벨로 세팅(프론트 호환).
+            String blackId = room.playerIdOf(blackPrincipal);
+            String blackName = nameOf(players, blackId);
+            String whiteName = nameOf(players, room.playerIdOf(whitePrincipal));
             room.initGame(blackId);
-            // 자리 소유를 principal로 지정(인가 토대). 기존 blackPlayer(player.id)는 프론트 호환 유지.
-            room.setBlackPrincipal(room.principalOf(blackPlayer.id()));
-            room.setWhitePrincipal(room.principalOf(whitePlayer.id()));
+            room.setBlackPrincipal(blackPrincipal);
+            room.setWhitePrincipal(whitePrincipal);
 
             log.info("[GAME_START] roomId={} title=\"{}\" black=\"{}\" white=\"{}\"",
                     roomId, room.getTitle(), blackName, whiteName);
