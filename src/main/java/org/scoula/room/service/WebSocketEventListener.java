@@ -1,7 +1,7 @@
 package org.scoula.room.service;
 
 import org.scoula.room.dto.MessageType;
-import org.scoula.room.dto.Room;
+import org.scoula.room.domain.Room;
 import org.scoula.room.dto.RoomResponseMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;

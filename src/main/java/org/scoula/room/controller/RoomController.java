@@ -2,8 +2,8 @@ package org.scoula.room.controller;
 
 import lombok.extern.slf4j.Slf4j;
 import org.scoula.room.dto.MessageType;
-import org.scoula.room.dto.Player;
-import org.scoula.room.dto.Room;
+import org.scoula.room.domain.Player;
+import org.scoula.room.domain.Room;
 import org.scoula.room.dto.RoomResponseDto;
 import org.scoula.room.dto.RoomResponseMessage;
 import org.scoula.room.service.RoomBroadcaster;

@@ -1,7 +1,7 @@
 package org.scoula.room.service;
 
 import org.junit.jupiter.api.Test;
-import org.scoula.room.dto.Room;
+import org.scoula.room.domain.Room;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

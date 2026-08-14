@@ -3,7 +3,7 @@ package org.scoula.room.controller;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.scoula.room.dto.MessageType;
-import org.scoula.room.dto.Player;
+import org.scoula.room.domain.Player;
 import org.scoula.room.dto.RoomRequestMessage;
 import org.scoula.room.dto.RoomResponseMessage;
 import org.scoula.room.service.RoomBroadcaster;

@@ -3,8 +3,8 @@ package org.scoula.room.service;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.scoula.room.dto.MessageType;
-import org.scoula.room.dto.Player;
-import org.scoula.room.dto.Room;
+import org.scoula.room.domain.Player;
+import org.scoula.room.domain.Room;
 import org.scoula.room.dto.RoomResponseMessage;
 import org.springframework.stereotype.Service;
 

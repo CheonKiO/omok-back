@@ -3,8 +3,8 @@ package org.scoula.room.service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.scoula.room.dto.MessageType;
-import org.scoula.room.dto.Player;
-import org.scoula.room.dto.Room;
+import org.scoula.room.domain.Player;
+import org.scoula.room.domain.Room;
 
 import java.util.concurrent.CountDownLatch;
 
