@@ -5,8 +5,6 @@ import org.junit.jupiter.api.Test;
 import org.scoula.room.dto.MessageType;
 import org.scoula.room.dto.Player;
 import org.scoula.room.dto.Room;
-import org.scoula.room.dto.RoomResponseMessage;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.util.concurrent.CountDownLatch;
 
@@ -22,11 +20,11 @@ import static org.mockito.Mockito.when;
  * processMove의 방어 로직 검증:
  *  - move index 범위(0~224) 밖 착수가 예외 없이 ERROR로 처리되는지 (#7)
  *  - 같은 방에 동시 MOVE가 들어와도 상태가 손상되지 않는지 (#2)
- * SimpMessagingTemplate은 Mockito mock, GameService는 실제 렌주 엔진을 물려 실동작 검증한다.
+ * RoomBroadcaster는 Mockito mock, GameService는 실제 렌주 엔진을 물려 실동작 검증한다.
  */
 class RoomSocketServiceConcurrencyTest {
 
-    private SimpMessagingTemplate messagingTemplate;
+    private RoomBroadcaster roomBroadcaster;
     private RoomService roomService;
     private RoomSocketService service;
 
@@ -36,10 +34,10 @@ class RoomSocketServiceConcurrencyTest {
 
     @BeforeEach
     void setUp() {
-        messagingTemplate = mock(SimpMessagingTemplate.class);
+        roomBroadcaster = mock(RoomBroadcaster.class);
         roomService = mock(RoomService.class);
         GameService gameService = new GameService(new RenjuRuleEngine());
-        service = new RoomSocketService(messagingTemplate, roomService, gameService);
+        service = new RoomSocketService(roomBroadcaster, roomService, gameService);
     }
 
     /** 흑 차례(turn=1)로 진행중인 빈 방. */
@@ -61,10 +59,9 @@ class RoomSocketServiceConcurrencyTest {
         assertDoesNotThrow(() -> service.processMove(ROOM_ID, black, 225));
         assertDoesNotThrow(() -> service.processMove(ROOM_ID, black, -1));
 
-        verify(messagingTemplate, org.mockito.Mockito.times(2)).convertAndSend(
-                eq("/topic/room/" + ROOM_ID),
-                (Object) argThat(m -> m instanceof RoomResponseMessage r
-                        && r.getType() == MessageType.ERROR));
+        verify(roomBroadcaster, org.mockito.Mockito.times(2)).broadcast(
+                eq(ROOM_ID),
+                argThat(m -> m.getType() == MessageType.ERROR));
     }
 
     @Test
@@ -92,11 +89,10 @@ class RoomSocketServiceConcurrencyTest {
         assertEquals(1, filledCells(room), "동시 MOVE 중 하나만 board에 반영되어야 한다");
 
         // 나머지 하나는 턴 에러로 거절.
-        verify(messagingTemplate).convertAndSend(
-                eq("/topic/room/" + ROOM_ID),
-                (Object) argThat(m -> m instanceof RoomResponseMessage r
-                        && r.getType() == MessageType.ERROR
-                        && "현재 당신의 차례가 아닙니다.".equals(r.getMessage())));
+        verify(roomBroadcaster).broadcast(
+                eq(ROOM_ID),
+                argThat(m -> m.getType() == MessageType.ERROR
+                        && "현재 당신의 차례가 아닙니다.".equals(m.getMessage())));
     }
 
     private Runnable wrapMove(int index, CountDownLatch ready, CountDownLatch fire, CountDownLatch done) {

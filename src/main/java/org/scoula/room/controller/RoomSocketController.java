@@ -6,12 +6,12 @@ import org.scoula.room.dto.MessageType;
 import org.scoula.room.dto.Player;
 import org.scoula.room.dto.RoomRequestMessage;
 import org.scoula.room.dto.RoomResponseMessage;
+import org.scoula.room.service.RoomBroadcaster;
 import org.scoula.room.service.RoomSocketService;
 import org.scoula.room.service.WebSocketEventListener;
 import org.springframework.messaging.handler.annotation.MessageExceptionHandler;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Controller;
@@ -23,7 +23,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class RoomSocketController {
 
-    private final SimpMessagingTemplate messagingTemplate;
+    private final RoomBroadcaster roomBroadcaster;
     private final RoomSocketService roomSocketService;
     private final WebSocketEventListener webSocketEventListener;
 
@@ -42,7 +42,7 @@ public class RoomSocketController {
         }
 
         MessageType type = isReconnect ? MessageType.RECONNECT : MessageType.JOIN;
-        messagingTemplate.convertAndSend("/topic/room/" + roomId,
+        roomBroadcaster.broadcast(roomId,
                 RoomResponseMessage.builder()
                         .sender(sender.id())
                         .roomId(roomId)

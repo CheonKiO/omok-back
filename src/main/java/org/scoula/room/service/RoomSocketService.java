@@ -6,7 +6,6 @@ import org.scoula.room.dto.MessageType;
 import org.scoula.room.dto.Player;
 import org.scoula.room.dto.Room;
 import org.scoula.room.dto.RoomResponseMessage;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -18,12 +17,12 @@ import java.util.TimerTask;
 @RequiredArgsConstructor
 public class RoomSocketService {
 
-    private final SimpMessagingTemplate messagingTemplate;
+    private final RoomBroadcaster roomBroadcaster;
     private final RoomService roomService;
     private final GameService gameService;
 
     private void broadcast(String roomId, RoomResponseMessage message) {
-        messagingTemplate.convertAndSend("/topic/room/" + roomId, message);
+        roomBroadcaster.broadcast(roomId, message);
     }
 
     public void notifyGameStart(String roomId) {
