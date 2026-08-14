@@ -30,6 +30,7 @@ class RoomSocketServiceConcurrencyTest {
 
     private static final String ROOM_ID = "room-1";
     private static final String BLACK_ID = "black-1";
+    private static final String BLACK_PRINCIPAL = "user:black";
     private final Player black = new Player(BLACK_ID, "흑돌");
 
     @BeforeEach
@@ -40,15 +41,19 @@ class RoomSocketServiceConcurrencyTest {
         service = new RoomSocketService(roomBroadcaster, roomService, gameService);
     }
 
-    /** 흑 차례(turn=1)로 진행중인 빈 방. */
+    /** 흑 차례(turn=1)로 진행중인 빈 방. 흑 자리는 세션 principal로 배정됨. */
     private Room playingRoom() {
-        return Room.builder()
+        Room room = Room.builder()
                 .roomId(ROOM_ID)
+                .players(java.util.List.of(black))
                 .blackPlayer(BLACK_ID)
                 .turn(1)
                 .board(new int[15][15])
                 .isPlaying(true)
                 .build();
+        room.bindMember(BLACK_PRINCIPAL, BLACK_ID, "흑돌");
+        room.setBlackPrincipal(BLACK_PRINCIPAL);
+        return room;
     }
 
     @Test
@@ -56,8 +61,8 @@ class RoomSocketServiceConcurrencyTest {
         Room room = playingRoom();
         when(roomService.getRoom(ROOM_ID)).thenReturn(room);
 
-        assertDoesNotThrow(() -> service.processMove(ROOM_ID, black, 225));
-        assertDoesNotThrow(() -> service.processMove(ROOM_ID, black, -1));
+        assertDoesNotThrow(() -> service.processMove(ROOM_ID, BLACK_PRINCIPAL, 225));
+        assertDoesNotThrow(() -> service.processMove(ROOM_ID, BLACK_PRINCIPAL, -1));
 
         verify(roomBroadcaster, org.mockito.Mockito.times(2)).broadcast(
                 eq(ROOM_ID),
@@ -100,7 +105,7 @@ class RoomSocketServiceConcurrencyTest {
             ready.countDown();
             try {
                 fire.await();
-                service.processMove(ROOM_ID, black, index);
+                service.processMove(ROOM_ID, BLACK_PRINCIPAL, index);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             } finally {

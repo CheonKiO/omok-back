@@ -16,6 +16,7 @@ import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Controller;
 
+import java.security.Principal;
 import java.util.Map;
 
 @Slf4j
@@ -52,36 +53,41 @@ public class RoomSocketController {
     }
 
     @MessageMapping("/ready")
-    public void handleReady(@Payload RoomRequestMessage message) {
+    public void handleReady(@Payload RoomRequestMessage message, Principal principal) {
         log.info("[READY] player=\"{}\" roomId={}", message.sender().name(), message.roomId());
-        roomSocketService.processReady(message.roomId(), message.sender());
+        roomSocketService.processReady(message.roomId(), nameOf(principal));
     }
 
     @MessageMapping("/cancel")
-    public void handleCancel(@Payload RoomRequestMessage message) {
+    public void handleCancel(@Payload RoomRequestMessage message, Principal principal) {
         log.info("[CANCEL] player=\"{}\" roomId={}", message.sender().name(), message.roomId());
-        roomSocketService.processCancel(message.roomId(), message.sender());
+        roomSocketService.processCancel(message.roomId(), nameOf(principal));
     }
 
     @MessageMapping("/surrender")
-    public void handleSurrender(@Payload RoomRequestMessage message) {
+    public void handleSurrender(@Payload RoomRequestMessage message, Principal principal) {
         if (message.type() != MessageType.SURRENDER) return;
-        roomSocketService.processSurrender(message.roomId(), message.sender());
+        roomSocketService.processSurrender(message.roomId(), nameOf(principal));
     }
 
     @MessageMapping("/timeout")
-    public void timeout(@Payload RoomRequestMessage message) {
+    public void timeout(@Payload RoomRequestMessage message, Principal principal) {
         if (message.type() != MessageType.TIMEOUT) return;
-        roomSocketService.processTimeout(message.roomId(), message.sender());
+        roomSocketService.processTimeout(message.roomId(), nameOf(principal));
     }
 
     @MessageMapping("/move")
-    public void handleMove(@Payload RoomRequestMessage message) {
+    public void handleMove(@Payload RoomRequestMessage message, Principal principal) {
         if (message.type() != MessageType.ACTION || message.index() == null) {
             log.warn("[MOVE_INVALID] player=\"{}\" roomId={}", message.sender().name(), message.roomId());
             return;
         }
-        roomSocketService.processMove(message.roomId(), message.sender(), message.index());
+        roomSocketService.processMove(message.roomId(), nameOf(principal), message.index());
+    }
+
+    /** 세션 principal 이름(JWT subject). 미인증(익명) CONNECT면 null → 서비스가 인가 거부. */
+    private static String nameOf(Principal principal) {
+        return principal == null ? null : principal.getName();
     }
 
     /** STOMP 메시지 처리 중 발생한 예외를 발신 클라이언트에게 에러 프레임으로 전달. */
