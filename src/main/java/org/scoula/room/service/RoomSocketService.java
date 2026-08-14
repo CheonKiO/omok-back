@@ -32,10 +32,15 @@ public class RoomSocketService {
             if (players.size() != 2) return;
 
             boolean firstIsBlack = Math.random() > 0.5;
-            String blackId = firstIsBlack ? players.get(0).id() : players.get(1).id();
-            String blackName = firstIsBlack ? players.get(0).name() : players.get(1).name();
-            String whiteName = firstIsBlack ? players.get(1).name() : players.get(0).name();
+            Player blackPlayer = firstIsBlack ? players.get(0) : players.get(1);
+            Player whitePlayer = firstIsBlack ? players.get(1) : players.get(0);
+            String blackId = blackPlayer.id();
+            String blackName = blackPlayer.name();
+            String whiteName = whitePlayer.name();
             room.initGame(blackId);
+            // 자리 소유를 principal로 지정(인가 토대). 기존 blackPlayer(player.id)는 프론트 호환 유지.
+            room.setBlackPrincipal(room.principalOf(blackPlayer.id()));
+            room.setWhitePrincipal(room.principalOf(whitePlayer.id()));
 
             log.info("[GAME_START] roomId={} title=\"{}\" black=\"{}\" white=\"{}\"",
                     roomId, room.getTitle(), blackName, whiteName);

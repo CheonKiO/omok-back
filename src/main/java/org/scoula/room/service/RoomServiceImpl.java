@@ -35,7 +35,7 @@ public class RoomServiceImpl implements RoomService {
     }
 
     @Override
-    public int joinRoom(String roomId, Player player, String password) {
+    public int joinRoom(String roomId, Player player, String password, String principal) {
         Room room = rooms.get(roomId);
         if (room == null || room.getPlayers().size() == 2) return 0;
 
@@ -44,8 +44,13 @@ public class RoomServiceImpl implements RoomService {
             if (password == null || !room.getPassword().equals(password)) return -1;
         }
 
-        if (room.getPlayers().contains(player)) return 1; // 이미 참여
+        if (room.getPlayers().contains(player)) {
+            room.bindMember(principal, player.id(), player.name()); // 재입장: principal 재확인
+            return 1; // 이미 참여
+        }
         room.getPlayers().add(player);
+        // 인증 principal을 자리에 기록. payload player.id/name은 표시용일 뿐.
+        room.bindMember(principal, player.id(), player.name());
         return 1;
     }
 

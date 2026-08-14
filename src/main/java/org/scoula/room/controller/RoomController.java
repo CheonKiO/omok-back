@@ -64,8 +64,11 @@ public class RoomController {
     public ResponseEntity<?> joinRoom(
             @PathVariable String roomId,
             @RequestBody Player player,
-            @RequestParam(required = false) String password) {
-        int result = roomService.joinRoom(roomId, player, password);
+            @RequestParam(required = false) String password,
+            org.springframework.security.core.Authentication authentication) {
+        // 신원은 인증 principal(JWT subject)만 사용. body player.id/name은 표시용.
+        String principal = authentication.getName();
+        int result = roomService.joinRoom(roomId, player, password, principal);
         return switch (result) {
             case 1 -> {
                 log.info("[JOIN] player=\"{}\"({}) roomId={}", player.name(), player.id(), roomId);
