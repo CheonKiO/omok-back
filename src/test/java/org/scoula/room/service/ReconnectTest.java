@@ -46,7 +46,9 @@ class ReconnectTest {
         listener = new WebSocketEventListener(roomBroadcaster, roomService);
     }
 
-    /** 진행중(isPlaying)인 방에 playerId=p-A가 아직 남아있는 상태. */
+    /** 진행중(isPlaying)인 방에 principal=user:A(자리 playerId=p-A)가 아직 남아있는 상태.
+     *  실제 흐름과 동일하게 HTTP join이 하듯 principal→playerId를 bindMember로 묶어둔다
+     *  (disconnect 핸들러가 방출 대상을 room.playerIdOf(principal)로 도출하므로 필수). */
     private Room playingRoomWith(String playerId) {
         Room room = Room.builder()
                 .roomId(ROOM_ID)
@@ -55,6 +57,7 @@ class ReconnectTest {
                 .turn(1)
                 .isPlaying(true)
                 .build();
+        room.bindMember(PRINCIPAL_A, playerId, "흑돌");
         return room;
     }
 
@@ -96,6 +99,32 @@ class ReconnectTest {
         // A의 유예는 그대로 유지됨(뒤늦은 A 취소가 성공)
         assertTrue(listener.cancelPendingDisconnect(PRINCIPAL_A),
                 "다른 키의 취소 시도 후에도 A의 유예는 유지되어야 한다");
+    }
+
+    @Test
+    void forgedPlayerIdInAttrsCannotEvictVictimOnDisconnect() {
+        // 방엔 피해자(principal=user:A, 자리 p-A)만 바인딩됨.
+        when(roomService.getRoom(ROOM_ID)).thenReturn(playingRoomWith(PLAYER_ID_A));
+
+        // 공격자 세션: event principal=user:attacker(비멤버), 그러나 attrs.playerId=피해자 p-A로 위조.
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.DISCONNECT);
+        accessor.setSessionId("sess-attacker");
+        Map<String, Object> attrs = new HashMap<>();
+        attrs.put("roomId", ROOM_ID);
+        attrs.put("playerId", PLAYER_ID_A); // 위조된 피해자 id
+        attrs.put("principal", "user:attacker");
+        accessor.setSessionAttributes(attrs);
+        Message<byte[]> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        Principal attacker = new UsernamePasswordAuthenticationToken("user:attacker", null);
+        SessionDisconnectEvent evt = new SessionDisconnectEvent(this, message, "sess-attacker", CloseStatus.NORMAL, attacker);
+
+        listener.handleWebSocketDisconnectListener(evt);
+
+        // 방출 대상은 room.playerIdOf(공격자 principal)=null → 조기 반환. 피해자 유예 등록 안 됨,
+        // leaveRoom 호출도 없음(피해자 강퇴 불가).
+        org.mockito.Mockito.verify(roomService, org.mockito.Mockito.never()).leaveRoom(ROOM_ID, PLAYER_ID_A);
+        assertFalse(listener.cancelPendingDisconnect("user:attacker"),
+                "비멤버 공격자의 disconnect는 유예를 만들지 않는다");
     }
 
     @Test

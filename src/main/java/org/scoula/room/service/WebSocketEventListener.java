@@ -52,15 +52,18 @@ public class WebSocketEventListener {
         Map<String, Object> attrs = headerAccessor.getSessionAttributes();
         if (attrs == null) return;
         String roomId = (String) attrs.get("roomId");
-        String playerId = (String) attrs.get("playerId");
+        if (roomId == null) return;
 
-        if (roomId == null || playerId == null) return;
-
-        // 유예 앵커는 CONNECT에서 바인딩된 principal(위조 불가). 이벤트 우선, 없으면 세션 attrs fallback.
+        // 신원 앵커는 CONNECT에서 바인딩된 principal(위조 불가). 이벤트 우선, 없으면 세션 attrs fallback.
         String principal = event.getUser() != null ? event.getUser().getName() : (String) attrs.get("principal");
 
         Room room = roomService.getRoom(roomId);
         if (room == null) return;
+
+        // 방출 대상 playerId는 payload에서 온 attrs.playerId가 아니라 principal→자리 바인딩에서 도출한다.
+        // (attrs.playerId는 WS join의 무검증 sender.id라, 그대로 쓰면 남의 자리를 방출하는 자리탈취 벡터.)
+        String playerId = principal != null ? room.playerIdOf(principal) : null;
+        if (playerId == null) return; // 비멤버/익명 → 정리할 자리 없음
 
         // 이미 HTTP leave API로 정상 퇴장한 경우 무시
         boolean isStillInRoom = room.getPlayers().stream().anyMatch(p -> p.id().equals(playerId));
