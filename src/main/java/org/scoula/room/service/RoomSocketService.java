@@ -28,24 +28,26 @@ public class RoomSocketService {
 
     public void notifyGameStart(String roomId) {
         Room room = roomService.getRoom(roomId);
-        List<Player> players = room.getPlayers();
-        if (players.size() != 2) return;
+        synchronized (room) {
+            List<Player> players = room.getPlayers();
+            if (players.size() != 2) return;
 
-        boolean firstIsBlack = Math.random() > 0.5;
-        String blackId = firstIsBlack ? players.get(0).id() : players.get(1).id();
-        String blackName = firstIsBlack ? players.get(0).name() : players.get(1).name();
-        String whiteName = firstIsBlack ? players.get(1).name() : players.get(0).name();
-        room.initGame(blackId);
+            boolean firstIsBlack = Math.random() > 0.5;
+            String blackId = firstIsBlack ? players.get(0).id() : players.get(1).id();
+            String blackName = firstIsBlack ? players.get(0).name() : players.get(1).name();
+            String whiteName = firstIsBlack ? players.get(1).name() : players.get(0).name();
+            room.initGame(blackId);
 
-        log.info("[GAME_START] roomId={} title=\"{}\" black=\"{}\" white=\"{}\"",
-                roomId, room.getTitle(), blackName, whiteName);
+            log.info("[GAME_START] roomId={} title=\"{}\" black=\"{}\" white=\"{}\"",
+                    roomId, room.getTitle(), blackName, whiteName);
 
-        broadcast(roomId, RoomResponseMessage.builder()
-                .roomId(roomId)
-                .type(MessageType.GAME_START)
-                .blackPlayer(blackId)
-                .message("게임이 시작되었습니다")
-                .build());
+            broadcast(roomId, RoomResponseMessage.builder()
+                    .roomId(roomId)
+                    .type(MessageType.GAME_START)
+                    .blackPlayer(blackId)
+                    .message("게임이 시작되었습니다")
+                    .build());
+        }
     }
 
     public void processReady(String roomId, Player sender) {
