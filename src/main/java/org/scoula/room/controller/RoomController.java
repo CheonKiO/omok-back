@@ -86,7 +86,17 @@ public class RoomController {
     }
 
     @PostMapping("/leave/{roomId}")
-    public ResponseEntity<?> leaveRoom(@PathVariable String roomId, @RequestParam String playerId) {
+    public ResponseEntity<?> leaveRoom(@PathVariable String roomId,
+                                        org.springframework.security.core.Authentication authentication) {
+        // 신원은 인증 principal만 사용. 과거 프론트가 보내던 ?playerId= 쿼리는(있어도) 무시한다.
+        String principal = authentication.getName();
+        Room room = roomService.getRoom(roomId);
+        String playerId = room != null ? room.playerIdOf(principal) : null;
+        if (playerId == null) {
+            log.warn("[LEAVE_FAIL] reason=NOT_MEMBER principal={} roomId={}", principal, roomId);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Player not found in the room");
+        }
+
         webSocketEventListener.cancelPendingDisconnect(playerId);
 
         boolean left = roomService.leaveRoom(roomId, playerId);
