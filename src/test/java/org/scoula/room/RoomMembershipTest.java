@@ -56,6 +56,21 @@ class RoomMembershipTest {
     }
 
     @Test
+    void attackerCannotStealSeatByReusingVictimPlayerId() {
+        Room r = emptyRoom();
+        r.bindMember("user:victim", "vid", "피해자");
+        // 공격자가 피해자의 표시용 player.id를 그대로 실어 join.
+        r.bindMember("user:attacker", "vid", "공격자");
+
+        // 피해자는 여전히 멤버(락아웃/탈취 없음).
+        assertTrue(r.isMember("user:victim"));
+        // 공격자는 오직 자기 principal로만 멤버.
+        assertTrue(r.isMember("user:attacker"));
+        // 표시용 player.id는 신원이 아니다.
+        assertFalse(r.isMember("vid"));
+    }
+
+    @Test
     void turnOwnerMatchesSeatPrincipal() {
         Player p1 = new Player("uuid-A", "흑돌");
         Player p2 = new Player("uuid-B", "백돌");

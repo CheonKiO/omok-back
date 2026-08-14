@@ -1,5 +1,6 @@
 package org.scoula.room.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.*;
 
@@ -21,12 +22,16 @@ public class Room {
     private boolean isPlaying;
     private int ready;
 
-    // 신원(A''): 자리 소유는 표시용 player.id가 아니라 인증 principal(JWT subject)로 기록한다.
-    // playerId(표시/reconnect 라벨) → principal. bindMember는 인증 경로에서만 호출해야 한다.
+    // 신원(A''): 자리 소유는 인증 principal(JWT subject)을 '키'로 기록한다.
+    // 키가 principal이므로 클라가 보낸 player.id로는 남의 자리를 덮어쓰거나 탈취할 수 없다.
+    // 값(playerId)은 표시/reconnect 라벨일 뿐 신원이 아니다. bindMember는 인증 경로에서만 호출.
+    @JsonIgnore
     @Builder.Default
-    private Map<String, String> principalByPlayerId = new ConcurrentHashMap<>();
+    private Map<String, String> playerIdByPrincipal = new ConcurrentHashMap<>();
     // 게임 시작 시 지정되는 자리별 소유 principal.
+    @JsonIgnore
     private String blackPrincipal;
+    @JsonIgnore
     private String whitePrincipal;
 
     public void initGame(String blackPlayer){
@@ -37,21 +42,29 @@ public class Room {
         this.blackPlayer = blackPlayer;
     }
 
-    /** HTTP join 시 자리에 인증 principal을 기록한다(최대 2). playerId/name은 표시용. */
+    /**
+     * HTTP join 시 인증 principal을 키로 자리를 기록한다(서로 다른 principal 최대 2).
+     * 같은 principal 재호출은 표시 라벨만 갱신하고, 이미 2자리가 찬 방에 새 principal이면 거부한다.
+     * 키가 principal이라 클라가 보낸 playerId로는 남의 자리를 건드릴 수 없다. 인증 경로에서만 호출.
+     */
     public void bindMember(String principal, String playerId, String name) {
         if (principal == null || playerId == null) return;
-        if (!principalByPlayerId.containsKey(playerId) && principalByPlayerId.size() >= 2) return;
-        principalByPlayerId.put(playerId, principal);
+        if (!playerIdByPrincipal.containsKey(principal) && playerIdByPrincipal.size() >= 2) return;
+        playerIdByPrincipal.put(principal, playerId);
     }
 
     /** principal이 이 방의 자리 소유자인지. payload로 온 id가 아니라 인증 principal만 인정. */
     public boolean isMember(String principal) {
-        return principal != null && principalByPlayerId.containsValue(principal);
+        return principal != null && playerIdByPrincipal.containsKey(principal);
     }
 
-    /** playerId(표시용)에 매핑된 소유 principal. 미바인딩이면 null. */
+    /** 표시용 playerId에 대응하는 소유 principal 역조회. 미바인딩이면 null. */
     public String principalOf(String playerId) {
-        return principalByPlayerId.get(playerId);
+        if (playerId == null) return null;
+        for (Map.Entry<String, String> e : playerIdByPrincipal.entrySet()) {
+            if (playerId.equals(e.getValue())) return e.getKey();
+        }
+        return null;
     }
 
     public String blackPrincipal() {
