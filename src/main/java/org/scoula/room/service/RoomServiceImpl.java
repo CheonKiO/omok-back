@@ -63,12 +63,18 @@ public class RoomServiceImpl implements RoomService {
         Room room = rooms.get(roomId);
         if (room == null) return false;
 
+        String principal = room.principalOf(playerId);
         boolean removed = room.getPlayers().removeIf(p -> p.id().equals(playerId));
         room.setReady(0);
         if(room.getPlayers().isEmpty()) {
             rooms.remove(roomId);
         } else {
             room.setPlaying(false); // 플레이어가 나가면 게임 중지
+            if (removed) {
+                // 유령 멤버 방지: 자리를 안 지우면 bindMember의 2자리 캡이
+                // 새 입장자를 영구 거부하는 소프트락이 생긴다.
+                room.unbindMember(principal);
+            }
         }
         return removed;
     }

@@ -77,6 +77,19 @@ public class Room {
         return principal == null ? null : playerIdByPrincipal.get(principal);
     }
 
+    /**
+     * principal의 자리를 정리한다(leave/grace-expire 공용). 맵에서 제거하고,
+     * 그 principal이 흑/백 자리 소유자였다면 해당 자리도 비운다.
+     * 호출하지 않으면 떠난 principal이 유령 멤버로 남아 bindMember의 2자리 캡이
+     * 새 입장자를 영구 거부하는 소프트락이 발생한다.
+     */
+    public void unbindMember(String principal) {
+        if (principal == null) return;
+        playerIdByPrincipal.remove(principal);
+        if (principal.equals(blackPrincipal)) blackPrincipal = null;
+        if (principal.equals(whitePrincipal)) whitePrincipal = null;
+    }
+
     public String blackPrincipal() {
         return blackPrincipal;
     }

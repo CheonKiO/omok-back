@@ -112,6 +112,23 @@ class RoomMembershipTest {
     }
 
     @Test
+    void unbindMemberClearsSeatAndTurnOwnership() {
+        Room r = emptyRoom();
+        r.bindMember("user:1", "uuid-A", "A");
+        r.bindMember("user:2", "uuid-B", "B");
+        r.setBlackPrincipal("user:1");
+        r.setWhitePrincipal("user:2");
+
+        r.unbindMember("user:1");
+
+        assertFalse(r.isMember("user:1"));
+        assertTrue(r.isMember("user:2"));
+        // 흑 자리 소유자였다면 자리도 함께 비운다(유령이 턴 소유자로 남지 않도록).
+        assertNull(r.blackPrincipal());
+        assertEquals("user:2", r.whitePrincipal());
+    }
+
+    @Test
     void duplicatePlayerIdJoinIsRejected() {
         RoomServiceImpl svc = new RoomServiceImpl();
         Room room = svc.createRoom("t", null);
@@ -124,6 +141,35 @@ class RoomMembershipTest {
         assertTrue(room.isMember("user:victim"));
         assertFalse(room.isMember("user:attacker"));
         assertEquals(1, room.getPlayers().size());
+    }
+
+    /**
+     * 리뷰 fix: leaveRoom이 players 리스트에서만 지우고 playerIdByPrincipal 맵 엔트리를
+     * 안 지우면, 떠난 principal이 유령 멤버로 남아 bindMember의 2자리 캡이 새 입장자를
+     * 영구 거부하는 소프트락이 생긴다. HTTP leave와 grace-expire(WebSocketEventListener)가
+     * 둘 다 RoomService.leaveRoom(roomId, playerId)를 그대로 호출하므로, 이 서비스 레벨
+     * 테스트 하나로 두 경로 모두 검증된다.
+     */
+    @Test
+    void leaveUnbindsMember_allowingNewPlayerToJoin() {
+        RoomServiceImpl svc = new RoomServiceImpl();
+        Room room = svc.createRoom("t", null);
+        String rid = room.getRoomId();
+
+        assertEquals(1, svc.joinRoom(rid, new Player("pA", "A"), null, "user:A"));
+        assertEquals(1, svc.joinRoom(rid, new Player("pB", "B"), null, "user:B"));
+        assertTrue(room.isMember("user:A"));
+        assertTrue(room.isMember("user:B"));
+
+        assertTrue(svc.leaveRoom(rid, "pA"));
+
+        // (a) 떠난 principal은 더 이상 멤버가 아니다(유령 멤버 방지).
+        assertFalse(room.isMember("user:A"));
+        assertTrue(room.isMember("user:B"));
+
+        // (b) 자리가 실제로 비어야 새 입장자가 2자리 캡에 안 걸리고 들어올 수 있다.
+        assertEquals(1, svc.joinRoom(rid, new Player("pC", "C"), null, "user:C"));
+        assertTrue(room.isMember("user:C"));
     }
 
     @Test

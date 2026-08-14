@@ -11,6 +11,7 @@ import org.scoula.room.service.RoomService;
 import org.scoula.room.service.WebSocketEventListener;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -65,7 +66,7 @@ public class RoomController {
             @PathVariable String roomId,
             @RequestBody Player player,
             @RequestParam(required = false) String password,
-            org.springframework.security.core.Authentication authentication) {
+            Authentication authentication) {
         // 신원은 인증 principal(JWT subject)만 사용. body player.id/name은 표시용.
         String principal = authentication.getName();
         int result = roomService.joinRoom(roomId, player, password, principal);
@@ -86,8 +87,7 @@ public class RoomController {
     }
 
     @PostMapping("/leave/{roomId}")
-    public ResponseEntity<?> leaveRoom(@PathVariable String roomId,
-                                        org.springframework.security.core.Authentication authentication) {
+    public ResponseEntity<?> leaveRoom(@PathVariable String roomId, Authentication authentication) {
         // 신원은 인증 principal만 사용. 과거 프론트가 보내던 ?playerId= 쿼리는(있어도) 무시한다.
         String principal = authentication.getName();
         Room room = roomService.getRoom(roomId);
