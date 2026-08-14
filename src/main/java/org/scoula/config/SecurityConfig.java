@@ -38,8 +38,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // 인증 엔드포인트
                         .requestMatchers("/api/auth/**").permitAll()
-                        // 기존 게임 REST/WebSocket — 현행 유지 (신원 강제는 STOMP 인터셉터가 담당)
-                        .requestMatchers("/api/rooms/**").permitAll()
+                        // 방 목록/조회는 공개 (배포 헬스체크: 무인증 GET /api/rooms)
+                        .requestMatchers(HttpMethod.GET, "/api/rooms", "/api/rooms/**").permitAll()
+                        // 방 생성/입장/퇴장은 인증 필요
+                        .requestMatchers(HttpMethod.POST, "/api/rooms/**").authenticated()
+                        // 기존 게임 WebSocket — 현행 유지 (신원 강제는 STOMP 인터셉터가 담당)
                         .requestMatchers("/game/**").permitAll()
                         .requestMatchers("/error").permitAll()
                         // 그 외는 인증 필요 (예: /api/users/me)

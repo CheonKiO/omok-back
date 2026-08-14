@@ -16,6 +16,7 @@ import org.springframework.messaging.simp.annotation.SendToUser;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Controller;
 
+import java.security.Principal;
 import java.util.Map;
 
 @Slf4j
@@ -28,17 +29,20 @@ public class RoomSocketController {
     private final WebSocketEventListener webSocketEventListener;
 
     @MessageMapping("/room/{roomId}/join")
-    public void joinRoom(@Payload RoomRequestMessage message, StompHeaderAccessor headerAccessor) {
+    public void joinRoom(@Payload RoomRequestMessage message, StompHeaderAccessor headerAccessor, Principal principal) {
         Player sender = message.sender();
         String roomId = message.roomId();
 
-        boolean isReconnect = webSocketEventListener.cancelPendingDisconnect(sender.id());
-        log.info("[WS_JOIN] player=\"{}\"({}) roomId={} reconnect={}", sender.name(), sender.id(), roomId, isReconnect);
+        // 재접속 유예 취소는 위조 불가한 principal 앵커로만. payload id는 인가 신원 아님.
+        String principalName = principal != null ? principal.getName() : null;
+        boolean isReconnect = webSocketEventListener.cancelPendingDisconnect(principalName);
+        log.info("[WS_JOIN] player=\"{}\"({}) principal={} roomId={} reconnect={}", sender.name(), sender.id(), principalName, roomId, isReconnect);
 
         Map<String, Object> attrs = headerAccessor.getSessionAttributes();
         if (attrs != null) {
             attrs.put("roomId", roomId);
             attrs.put("playerId", sender.id());
+            if (principalName != null) attrs.put("principal", principalName);
         }
 
         MessageType type = isReconnect ? MessageType.RECONNECT : MessageType.JOIN;
@@ -52,36 +56,41 @@ public class RoomSocketController {
     }
 
     @MessageMapping("/ready")
-    public void handleReady(@Payload RoomRequestMessage message) {
+    public void handleReady(@Payload RoomRequestMessage message, Principal principal) {
         log.info("[READY] player=\"{}\" roomId={}", message.sender().name(), message.roomId());
-        roomSocketService.processReady(message.roomId(), message.sender());
+        roomSocketService.processReady(message.roomId(), nameOf(principal));
     }
 
     @MessageMapping("/cancel")
-    public void handleCancel(@Payload RoomRequestMessage message) {
+    public void handleCancel(@Payload RoomRequestMessage message, Principal principal) {
         log.info("[CANCEL] player=\"{}\" roomId={}", message.sender().name(), message.roomId());
-        roomSocketService.processCancel(message.roomId(), message.sender());
+        roomSocketService.processCancel(message.roomId(), nameOf(principal));
     }
 
     @MessageMapping("/surrender")
-    public void handleSurrender(@Payload RoomRequestMessage message) {
+    public void handleSurrender(@Payload RoomRequestMessage message, Principal principal) {
         if (message.type() != MessageType.SURRENDER) return;
-        roomSocketService.processSurrender(message.roomId(), message.sender());
+        roomSocketService.processSurrender(message.roomId(), nameOf(principal));
     }
 
     @MessageMapping("/timeout")
-    public void timeout(@Payload RoomRequestMessage message) {
+    public void timeout(@Payload RoomRequestMessage message, Principal principal) {
         if (message.type() != MessageType.TIMEOUT) return;
-        roomSocketService.processTimeout(message.roomId(), message.sender());
+        roomSocketService.processTimeout(message.roomId(), nameOf(principal));
     }
 
     @MessageMapping("/move")
-    public void handleMove(@Payload RoomRequestMessage message) {
+    public void handleMove(@Payload RoomRequestMessage message, Principal principal) {
         if (message.type() != MessageType.ACTION || message.index() == null) {
             log.warn("[MOVE_INVALID] player=\"{}\" roomId={}", message.sender().name(), message.roomId());
             return;
         }
-        roomSocketService.processMove(message.roomId(), message.sender(), message.index());
+        roomSocketService.processMove(message.roomId(), nameOf(principal), message.index());
+    }
+
+    /** 세션 principal 이름(JWT subject). 미인증(익명) CONNECT면 null → 서비스가 인가 거부. */
+    private static String nameOf(Principal principal) {
+        return principal == null ? null : principal.getName();
     }
 
     /** STOMP 메시지 처리 중 발생한 예외를 발신 클라이언트에게 에러 프레임으로 전달. */
