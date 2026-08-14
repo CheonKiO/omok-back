@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class GameServiceTest {
 
     private static final int SIZE = 15;
-    private final GameService gameService = new GameService();
+    private final GameService gameService = new GameService(new RenjuRuleEngine());
 
     /** 빈 15x15 보드. */
     private int[][] board() {
