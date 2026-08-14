@@ -1,6 +1,8 @@
 package org.scoula.room.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.scoula.room.domain.Player;
+import org.scoula.room.domain.Room;
 
 import java.util.List;
 

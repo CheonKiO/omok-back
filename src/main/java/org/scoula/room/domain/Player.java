@@ -1,4 +1,4 @@
-package org.scoula.room.dto;
+package org.scoula.room.domain;
 
 public record Player(String id, String name) {
 

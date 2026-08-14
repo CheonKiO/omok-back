@@ -1,7 +1,7 @@
 package org.scoula.room.service;
 
 import org.junit.jupiter.api.Test;
-import org.scoula.room.dto.Room;
+import org.scoula.room.domain.Room;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class GameServiceTest {
 
     private static final int SIZE = 15;
-    private final GameService gameService = new GameService();
+    private final GameService gameService = new GameService(new RenjuRuleEngine());
 
     /** 빈 15x15 보드. */
     private int[][] board() {

@@ -1,13 +1,12 @@
 package org.scoula.room.service;
 
 import org.scoula.room.dto.MessageType;
-import org.scoula.room.dto.Room;
+import org.scoula.room.domain.Room;
 import org.scoula.room.dto.RoomResponseMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Component;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.util.Map;
@@ -23,13 +22,13 @@ public class WebSocketEventListener {
 
     private static final int GRACE_PERIOD_SECONDS = 30;
 
-    private final SimpMessagingTemplate messagingTemplate;
+    private final RoomBroadcaster roomBroadcaster;
     private final RoomService roomService;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);
     private final ConcurrentHashMap<String, ScheduledFuture<?>> pendingDisconnects = new ConcurrentHashMap<>();
 
-    public WebSocketEventListener(SimpMessagingTemplate messagingTemplate, RoomService roomService) {
-        this.messagingTemplate = messagingTemplate;
+    public WebSocketEventListener(RoomBroadcaster roomBroadcaster, RoomService roomService) {
+        this.roomBroadcaster = roomBroadcaster;
         this.roomService = roomService;
     }
 
@@ -68,8 +67,8 @@ public class WebSocketEventListener {
         if (room.isPlaying()) {
             // 게임 중 연결 끊김 → 유예 시간 부여
             log.warn("[WS_DISCONNECT] playerId={} roomId={} grace={}s", playerId, roomId, GRACE_PERIOD_SECONDS);
-            messagingTemplate.convertAndSend(
-                    "/topic/room/" + roomId,
+            roomBroadcaster.broadcast(
+                    roomId,
                     RoomResponseMessage.builder()
                             .type(MessageType.DISCONNECTED)
                             .sender(playerId)
@@ -79,8 +78,8 @@ public class WebSocketEventListener {
             ScheduledFuture<?> future = scheduler.schedule(() -> {
                 pendingDisconnects.remove(playerId);
                 roomService.leaveRoom(roomId, playerId);
-                messagingTemplate.convertAndSend(
-                        "/topic/room/" + roomId,
+                roomBroadcaster.broadcast(
+                        roomId,
                         RoomResponseMessage.builder()
                                 .type(MessageType.LEAVE)
                                 .sender(playerId)
@@ -93,8 +92,8 @@ public class WebSocketEventListener {
         } else {
             // 게임 중이 아닐 때 → 즉시 퇴장
             roomService.leaveRoom(roomId, playerId);
-            messagingTemplate.convertAndSend(
-                    "/topic/room/" + roomId,
+            roomBroadcaster.broadcast(
+                    roomId,
                     RoomResponseMessage.builder()
                             .type(MessageType.LEAVE)
                             .sender(playerId)

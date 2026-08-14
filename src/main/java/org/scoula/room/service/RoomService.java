@@ -1,7 +1,7 @@
 package org.scoula.room.service;
 
-import org.scoula.room.dto.Player;
-import org.scoula.room.dto.Room;
+import org.scoula.room.domain.Player;
+import org.scoula.room.domain.Room;
 
 public interface RoomService {
     public Room createRoom(String title, String password);

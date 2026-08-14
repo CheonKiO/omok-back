@@ -2,15 +2,15 @@ package org.scoula.room.controller;
 
 import lombok.extern.slf4j.Slf4j;
 import org.scoula.room.dto.MessageType;
-import org.scoula.room.dto.Player;
-import org.scoula.room.dto.Room;
+import org.scoula.room.domain.Player;
+import org.scoula.room.domain.Room;
 import org.scoula.room.dto.RoomResponseDto;
 import org.scoula.room.dto.RoomResponseMessage;
+import org.scoula.room.service.RoomBroadcaster;
 import org.scoula.room.service.RoomService;
 import org.scoula.room.service.WebSocketEventListener;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,13 +22,13 @@ import java.util.List;
 public class RoomController {
 
     private final RoomService roomService;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final RoomBroadcaster roomBroadcaster;
     private final WebSocketEventListener webSocketEventListener;
 
-    public RoomController(RoomService roomService, SimpMessagingTemplate messagingTemplate,
+    public RoomController(RoomService roomService, RoomBroadcaster roomBroadcaster,
                           WebSocketEventListener webSocketEventListener) {
         this.roomService = roomService;
-        this.messagingTemplate = messagingTemplate;
+        this.roomBroadcaster = roomBroadcaster;
         this.webSocketEventListener = webSocketEventListener;
     }
 
@@ -89,8 +89,8 @@ public class RoomController {
         boolean left = roomService.leaveRoom(roomId, playerId);
         if (left) {
             log.info("[LEAVE] playerId={} roomId={}", playerId, roomId);
-            messagingTemplate.convertAndSend(
-                    "/topic/room/" + roomId,
+            roomBroadcaster.broadcast(
+                    roomId,
                     RoomResponseMessage.builder().type(MessageType.LEAVE).sender(playerId).build()
             );
             return ResponseEntity.ok("Left the room successfully");
