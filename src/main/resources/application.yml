@@ -7,3 +7,16 @@ spring:
       max-file-size: 10MB
       max-request-size: 20MB
       file-size-threshold: 5MB
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/omok?serverTimezone=UTC&characterEncoding=UTF-8}
+    username: ${DB_USERNAME:omok}
+    password: ${DB_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    open-in-view: false
+
+jwt:
+  secret: ${JWT_SECRET:local-dev-secret-change-me-please-32bytes-minimum}
+  access-exp-millis: ${JWT_ACCESS_EXP:1800000}
+  refresh-exp-millis: ${JWT_REFRESH_EXP:1209600000}
