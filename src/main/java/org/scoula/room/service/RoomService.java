@@ -13,4 +13,6 @@ public interface RoomService {
     public Room getRoom(String roomId);
     public java.util.List<Room> getRoomList();
     public boolean leaveRoom(String roomId, String playerId);
+    /** 빈 방 GC(EmptyRoomCleaner)가 TTL 경과 빈 방을 rooms 맵에서 제거할 때 사용. */
+    public void removeRoom(String roomId);
 }

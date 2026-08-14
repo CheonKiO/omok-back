@@ -3,6 +3,7 @@ package org.scoula.room.service;
 import org.scoula.room.dto.MessageType;
 import org.scoula.room.domain.Room;
 import org.scoula.room.dto.RoomResponseMessage;
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
@@ -30,6 +31,12 @@ public class WebSocketEventListener {
     public WebSocketEventListener(RoomBroadcaster roomBroadcaster, RoomService roomService) {
         this.roomBroadcaster = roomBroadcaster;
         this.roomService = roomService;
+    }
+
+    // 빈 소멸 시 유예 스케줄러를 정리해 스레드/작업 누수를 막는다.
+    @PreDestroy
+    public void shutdown() {
+        scheduler.shutdownNow();
     }
 
     // RoomSocketController/HTTP leave에서 호출 - 유예 창의 앵커는 위조 불가한 principal.

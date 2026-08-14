@@ -88,6 +88,11 @@ public class RoomServiceImpl implements RoomService {
         return rooms.get(roomId);
     }
 
+    @Override
+    public void removeRoom(String roomId) {
+        rooms.remove(roomId);
+    }
+
 
 }
 

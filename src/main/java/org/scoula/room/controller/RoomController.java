@@ -7,6 +7,7 @@ import org.scoula.room.domain.Room;
 import org.scoula.room.dto.RoomResponseDto;
 import org.scoula.room.dto.RoomResponseMessage;
 import org.scoula.room.service.RoomBroadcaster;
+import org.scoula.room.service.RoomCreationRateLimiter;
 import org.scoula.room.service.RoomService;
 import org.scoula.room.service.WebSocketEventListener;
 import org.springframework.http.HttpStatus;
@@ -25,12 +26,15 @@ public class RoomController {
     private final RoomService roomService;
     private final RoomBroadcaster roomBroadcaster;
     private final WebSocketEventListener webSocketEventListener;
+    private final RoomCreationRateLimiter roomCreationRateLimiter;
 
     public RoomController(RoomService roomService, RoomBroadcaster roomBroadcaster,
-                          WebSocketEventListener webSocketEventListener) {
+                          WebSocketEventListener webSocketEventListener,
+                          RoomCreationRateLimiter roomCreationRateLimiter) {
         this.roomService = roomService;
         this.roomBroadcaster = roomBroadcaster;
         this.webSocketEventListener = webSocketEventListener;
+        this.roomCreationRateLimiter = roomCreationRateLimiter;
     }
 
     @GetMapping("")
@@ -51,7 +55,14 @@ public class RoomController {
     @PostMapping("/create")
     public ResponseEntity<?> createRoom(
             @RequestParam String title,
-            @RequestParam(required = false) String password) {
+            @RequestParam(required = false) String password,
+            Authentication authentication) {
+        // 신원은 인증 principal(JWT subject)만 사용. principal당 분당 생성 횟수를 제한(방 생성 DoS 차단).
+        String principal = authentication.getName();
+        if (!roomCreationRateLimiter.tryAcquire(principal)) {
+            log.warn("[ROOM_CREATE_RATELIMIT] principal={} title=\"{}\"", principal, title);
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body("Too many room creations. Try again later.");
+        }
         Room room = roomService.createRoom(title, password);
         if (room == null) {
             log.error("[ROOM_CREATE_FAIL] title=\"{}\"", title);

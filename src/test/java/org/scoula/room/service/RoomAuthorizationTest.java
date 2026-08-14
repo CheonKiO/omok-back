@@ -42,7 +42,8 @@ class RoomAuthorizationTest {
         roomBroadcaster = mock(RoomBroadcaster.class);
         roomService = mock(RoomService.class);
         GameService gameService = new GameService(new RenjuRuleEngine());
-        service = new RoomSocketService(roomBroadcaster, roomService, gameService);
+        service = new RoomSocketService(roomBroadcaster, roomService, gameService,
+                org.mockito.Mockito.mock(org.springframework.scheduling.TaskScheduler.class));
     }
 
     /** 흑=user:2, 백=user:3 배정된 진행중(흑 차례) 방. */

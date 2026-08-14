@@ -6,11 +6,11 @@ import org.scoula.room.dto.MessageType;
 import org.scoula.room.domain.Player;
 import org.scoula.room.domain.Room;
 import org.scoula.room.dto.RoomResponseMessage;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
 
 @Slf4j
 @Service
@@ -20,6 +20,8 @@ public class RoomSocketService {
     private final RoomBroadcaster roomBroadcaster;
     private final RoomService roomService;
     private final GameService gameService;
+    // 게임 시작 지연을 게임마다 새 non-daemon Timer 스레드 대신 공용 스케줄러로 처리(스레드 누수 제거).
+    private final TaskScheduler taskScheduler;
 
     private void broadcast(String roomId, RoomResponseMessage message) {
         roomBroadcaster.broadcast(roomId, message);
@@ -89,10 +91,7 @@ public class RoomSocketService {
                     .build());
 
             if (room.getReady() == 2) {
-                new Timer().schedule(new TimerTask() {
-                    @Override
-                    public void run() { notifyGameStart(roomId); }
-                }, 500);
+                taskScheduler.schedule(() -> notifyGameStart(roomId), Instant.now().plusMillis(500));
             }
         }
     }

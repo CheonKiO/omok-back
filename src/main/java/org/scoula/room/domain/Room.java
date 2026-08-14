@@ -22,6 +22,11 @@ public class Room {
     private boolean isPlaying;
     private int ready;
 
+    // 방 생성 시각(epoch ms). 빈 방 TTL GC(EmptyRoomCleaner)의 기준. 표시용 아님.
+    @JsonIgnore
+    @Builder.Default
+    private long createdAt = System.currentTimeMillis();
+
     // 신원(A''): 자리 소유는 인증 principal(JWT subject)을 '키'로 기록한다.
     // 키가 principal이므로 클라가 보낸 player.id로는 남의 자리를 덮어쓰거나 탈취할 수 없다.
     // 값(playerId)은 표시/reconnect 라벨일 뿐 신원이 아니다. bindMember는 인증 경로에서만 호출.

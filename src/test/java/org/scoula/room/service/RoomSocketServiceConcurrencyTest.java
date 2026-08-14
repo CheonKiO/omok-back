@@ -38,7 +38,8 @@ class RoomSocketServiceConcurrencyTest {
         roomBroadcaster = mock(RoomBroadcaster.class);
         roomService = mock(RoomService.class);
         GameService gameService = new GameService(new RenjuRuleEngine());
-        service = new RoomSocketService(roomBroadcaster, roomService, gameService);
+        service = new RoomSocketService(roomBroadcaster, roomService, gameService,
+                org.mockito.Mockito.mock(org.springframework.scheduling.TaskScheduler.class));
     }
 
     /** 흑 차례(turn=1)로 진행중인 빈 방. 흑 자리는 세션 principal로 배정됨. */
