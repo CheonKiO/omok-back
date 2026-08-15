@@ -31,6 +31,7 @@ public class GameService {
 
         board[y][x] = turn;
         room.setTurn(turn + 1);
+        room.recordMove(index);
     }
 
     public boolean isForbiddenMove(Room room, int index) {

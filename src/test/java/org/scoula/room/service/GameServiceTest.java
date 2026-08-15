@@ -133,6 +133,26 @@ class GameServiceTest {
     }
 
     // ── 가드: 흑의 6목(장목)은 금수 ──
+    // ── 착수 시퀀스가 놓인 순서대로 기록된다 (#17 기보 원천) ──
+    @Test
+    void applyMoveRecordsMoveHistoryInOrder() {
+        Room room = Room.builder().board(board()).turn(1).build();
+        gameService.applyMove(room, idx(7, 7));
+        gameService.applyMove(room, idx(8, 7));
+        gameService.applyMove(room, idx(7, 8));
+        assertEquals(java.util.List.of(idx(7, 7), idx(8, 7), idx(7, 8)), room.getMoveHistory(),
+                "착수 index가 놓인 순서대로 moveHistory에 기록되어야 한다");
+    }
+
+    // ── initGame이 이전 대국의 착수 기록을 초기화한다 ──
+    @Test
+    void initGameClearsMoveHistory() {
+        Room room = Room.builder().board(board()).turn(1).build();
+        gameService.applyMove(room, idx(7, 7));
+        room.initGame("somePrincipal");
+        assertTrue(room.getMoveHistory().isEmpty(), "새 대국 시작 시 moveHistory는 비어야 한다");
+    }
+
     @Test
     void overlineIsForbiddenForBlack() {
         int[][] b = board();
