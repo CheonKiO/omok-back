@@ -43,7 +43,8 @@ class ReconnectTest {
     void setUp() {
         roomBroadcaster = mock(RoomBroadcaster.class);
         roomService = mock(RoomService.class);
-        listener = new WebSocketEventListener(roomBroadcaster, roomService);
+        listener = new WebSocketEventListener(roomBroadcaster, roomService,
+                mock(org.scoula.game.GameArchiveService.class));
     }
 
     /** 진행중(isPlaying)인 방에 principal=user:A(자리 playerId=p-A)가 아직 남아있는 상태.

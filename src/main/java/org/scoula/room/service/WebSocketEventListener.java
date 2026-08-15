@@ -25,12 +25,15 @@ public class WebSocketEventListener {
 
     private final RoomBroadcaster roomBroadcaster;
     private final RoomService roomService;
+    private final org.scoula.game.GameArchiveService gameArchiveService;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);
     private final ConcurrentHashMap<String, ScheduledFuture<?>> pendingDisconnects = new ConcurrentHashMap<>();
 
-    public WebSocketEventListener(RoomBroadcaster roomBroadcaster, RoomService roomService) {
+    public WebSocketEventListener(RoomBroadcaster roomBroadcaster, RoomService roomService,
+                                  org.scoula.game.GameArchiveService gameArchiveService) {
         this.roomBroadcaster = roomBroadcaster;
         this.roomService = roomService;
+        this.gameArchiveService = gameArchiveService;
     }
 
     // 빈 소멸 시 유예 스케줄러를 정리해 스레드/작업 누수를 막는다.
@@ -93,6 +96,19 @@ public class WebSocketEventListener {
             final String gracePrincipal = principal;
             ScheduledFuture<?> future = scheduler.schedule(() -> {
                 pendingDisconnects.remove(gracePrincipal);
+                // 끊김 몰수: 끊긴 principal이 패 → 상대 승. leaveRoom(자리 principal unbind) 전에 기보 저장.
+                // 다른 종료 경로(processMove/surrender/timeout)와 가시성·중복저장 일관성 위해 room 락 안에서.
+                Room graceRoom = roomService.getRoom(roomId);
+                if (graceRoom != null) {
+                    synchronized (graceRoom) {
+                        if (graceRoom.isPlaying()) {
+                            org.scoula.game.WinnerColor w = gracePrincipal.equals(graceRoom.blackPrincipal())
+                                    ? org.scoula.game.WinnerColor.WHITE : org.scoula.game.WinnerColor.BLACK;
+                            graceRoom.setPlaying(false); // 종료 표시 → 타 경로 이중저장 차단
+                            gameArchiveService.archive(graceRoom, w, org.scoula.game.EndReason.DISCONNECT);
+                        }
+                    }
+                }
                 roomService.leaveRoom(roomId, playerId);
                 roomBroadcaster.broadcast(
                         roomId,

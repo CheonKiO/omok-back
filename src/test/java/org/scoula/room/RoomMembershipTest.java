@@ -90,7 +90,8 @@ class RoomMembershipTest {
         RoomService roomService = mock(RoomService.class);
         when(roomService.getRoom("room-1")).thenReturn(room);
         RoomSocketService service = new RoomSocketService(
-                mock(RoomBroadcaster.class), roomService, mock(GameService.class), mock(TaskScheduler.class));
+                mock(RoomBroadcaster.class), roomService, mock(GameService.class),
+                mock(org.scoula.game.GameArchiveService.class), mock(TaskScheduler.class));
 
         // 게임 시작 → 두 멤버 principal 중 하나가 흑, 다른 하나가 백 자리 소유.
         service.notifyGameStart("room-1");
@@ -189,7 +190,8 @@ class RoomMembershipTest {
         RoomService roomService = mock(RoomService.class);
         when(roomService.getRoom("room-1")).thenReturn(room);
         RoomSocketService service = new RoomSocketService(
-                mock(RoomBroadcaster.class), roomService, mock(GameService.class), mock(TaskScheduler.class));
+                mock(RoomBroadcaster.class), roomService, mock(GameService.class),
+                mock(org.scoula.game.GameArchiveService.class), mock(TaskScheduler.class));
 
         // 랜덤 배정을 여러 번 돌려도 흑≠백 principal 불변.
         for (int i = 0; i < 30; i++) {

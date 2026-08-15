@@ -30,6 +30,7 @@ class RoomAuthorizationTest {
 
     private RoomBroadcaster roomBroadcaster;
     private RoomService roomService;
+    private org.scoula.game.GameArchiveService gameArchiveService;
     private RoomSocketService service;
 
     private static final String ROOM_ID = "room-1";
@@ -42,7 +43,9 @@ class RoomAuthorizationTest {
         roomBroadcaster = mock(RoomBroadcaster.class);
         roomService = mock(RoomService.class);
         GameService gameService = new GameService(new RenjuRuleEngine());
+        gameArchiveService = org.mockito.Mockito.mock(org.scoula.game.GameArchiveService.class);
         service = new RoomSocketService(roomBroadcaster, roomService, gameService,
+                gameArchiveService,
                 org.mockito.Mockito.mock(org.springframework.scheduling.TaskScheduler.class));
     }
 
@@ -74,6 +77,27 @@ class RoomAuthorizationTest {
             }
         }
         return count;
+    }
+
+    // ── 정상 기권 → 기보 저장 1회 ──
+    @Test
+    void surrenderWhilePlayingArchivesOnce() {
+        Room room = startedRoom();
+        when(roomService.getRoom(ROOM_ID)).thenReturn(room);
+        service.processSurrender(ROOM_ID, BLACK);
+        verify(gameArchiveService, times(1)).archive(eq(room), any(), any());
+    }
+
+    // ── 이미 끝난 게임에 기권 → 중복 저장/처리 없음 (isPlaying 가드) ──
+    @Test
+    void surrenderAfterGameEndDoesNotArchive() {
+        Room room = startedRoom();
+        room.setPlaying(false); // 이미 종료
+        when(roomService.getRoom(ROOM_ID)).thenReturn(room);
+        service.processSurrender(ROOM_ID, BLACK);
+        verify(gameArchiveService, never()).archive(any(), any(), any());
+        verify(roomBroadcaster, never()).broadcast(eq(ROOM_ID),
+                argThat(m -> m.getType() == MessageType.GAME_END));
     }
 
     @Test
