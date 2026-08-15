@@ -13,8 +13,14 @@ spring:
     password: ${DB_PASSWORD:}
   jpa:
     hibernate:
-      ddl-auto: ${JPA_DDL_AUTO:update}
+      # Flyway가 스키마를 소유. JPA는 매핑 + 엔티티↔스키마 일치 검증만.
+      ddl-auto: ${JPA_DDL_AUTO:validate}
     open-in-view: false
+  flyway:
+    enabled: true
+    # 기존 prod DB(users/refresh_tokens 이미 존재)를 V1로 채택, 이후 V2+만 적용.
+    baseline-on-migrate: true
+    baseline-version: 1
 
 jwt:
   secret: ${JWT_SECRET:local-dev-secret-change-me-please-32bytes-minimum}

@@ -22,6 +22,12 @@ public class Room {
     private boolean isPlaying;
     private int ready;
 
+    // 대국 착수 순서(index를 놓인 순서대로). 게임종료 시 기보 저장의 원천 데이터.
+    // in-memory만 유지 — 서버 중단 시 함께 소멸(중단된 대국은 기보 미저장).
+    @Builder.Default
+    @JsonIgnore
+    private List<Integer> moveHistory = new java.util.ArrayList<>();
+
     // 방 생성 시각(epoch ms). 빈 방 TTL GC(EmptyRoomCleaner)의 기준. 표시용 아님.
     @JsonIgnore
     @Builder.Default
@@ -45,6 +51,12 @@ public class Room {
         ready = 0;
         isPlaying = true;
         this.blackPlayer = blackPlayer;
+        moveHistory = new java.util.ArrayList<>();
+    }
+
+    /** 착수를 놓인 순서대로 기록한다. */
+    public void recordMove(int index) {
+        moveHistory.add(index);
     }
 
     /**
