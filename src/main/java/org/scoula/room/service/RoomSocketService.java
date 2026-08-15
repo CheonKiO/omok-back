@@ -119,6 +119,7 @@ public class RoomSocketService {
         String name;
         synchronized (room) {
             if (!room.isMember(principal)) return;
+            if (!room.isPlaying()) return; // 이미 종료된 게임 → 중복 처리/저장 방지
             name = seatName(room, principal);
             room.setPlaying(false);
             room.setReady(0);
@@ -142,6 +143,7 @@ public class RoomSocketService {
         String name;
         synchronized (room) {
             if (!room.isMember(principal)) return;
+            if (!room.isPlaying()) return; // 이미 종료된 게임 → 중복 처리/저장 방지
             name = seatName(room, principal);
             room.setPlaying(false);
             // 시간초과자(principal)가 패 → 상대 승. 기보 저장.

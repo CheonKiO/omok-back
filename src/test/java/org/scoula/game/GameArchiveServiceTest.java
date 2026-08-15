@@ -69,6 +69,27 @@ class GameArchiveServiceTest {
     }
 
     @Test
+    void truncatesLongNamesTo50() {
+        String longName = "가".repeat(80); // 클라 제공 이름은 길이 무검증
+        Room room = Room.builder()
+                .roomId("room-1")
+                .players(new ArrayList<>(List.of(new Player("uuidB", longName), new Player("uuidW", "백돌"))))
+                .board(new int[15][15])
+                .moveHistory(new ArrayList<>(List.of(112)))
+                .build();
+        room.bindMember("2", "uuidB", longName);
+        room.bindMember("3", "uuidW", "백돌");
+        room.setBlackPrincipal("2");
+        room.setWhitePrincipal("3");
+
+        service.archive(room, WinnerColor.BLACK, EndReason.WIN_5);
+
+        ArgumentCaptor<Game> cap = ArgumentCaptor.forClass(Game.class);
+        verify(repo).save(cap.capture());
+        assertEquals(50, cap.getValue().getBlackName().length(), "black_name은 VARCHAR(50) 이내로 truncate");
+    }
+
+    @Test
     void skipsWhenSeatPrincipalMissing() {
         Room room = roomWith("2", "3");
         room.setWhitePrincipal(null); // 비정상 상태
