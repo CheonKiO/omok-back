@@ -20,6 +20,7 @@ public class RoomSocketService {
     private final RoomBroadcaster roomBroadcaster;
     private final RoomService roomService;
     private final GameService gameService;
+    private final org.scoula.game.GameArchiveService gameArchiveService;
     // 게임 시작 지연을 게임마다 새 non-daemon Timer 스레드 대신 공용 스케줄러로 처리(스레드 누수 제거).
     private final TaskScheduler taskScheduler;
 
@@ -121,6 +122,10 @@ public class RoomSocketService {
             name = seatName(room, principal);
             room.setPlaying(false);
             room.setReady(0);
+            // 기권자(principal)가 패 → 상대 승. 기보 저장.
+            org.scoula.game.WinnerColor winner = principal.equals(room.blackPrincipal())
+                    ? org.scoula.game.WinnerColor.WHITE : org.scoula.game.WinnerColor.BLACK;
+            gameArchiveService.archive(room, winner, org.scoula.game.EndReason.SURRENDER);
         }
 
         log.info("[SURRENDER] roomId={} player=\"{}\"", roomId, name);
@@ -139,6 +144,10 @@ public class RoomSocketService {
             if (!room.isMember(principal)) return;
             name = seatName(room, principal);
             room.setPlaying(false);
+            // 시간초과자(principal)가 패 → 상대 승. 기보 저장.
+            org.scoula.game.WinnerColor winner = principal.equals(room.blackPrincipal())
+                    ? org.scoula.game.WinnerColor.WHITE : org.scoula.game.WinnerColor.BLACK;
+            gameArchiveService.archive(room, winner, org.scoula.game.EndReason.TIMEOUT);
         }
 
         log.info("[TIMEOUT] roomId={} player=\"{}\"", roomId, name);
@@ -170,6 +179,10 @@ public class RoomSocketService {
             if (gameService.checkGameEnd(room, index)) {
                 room.setPlaying(false);
                 room.setReady(0);
+                // 착수자(principal)가 승. 기보 저장.
+                org.scoula.game.WinnerColor winner = principal.equals(room.blackPrincipal())
+                        ? org.scoula.game.WinnerColor.BLACK : org.scoula.game.WinnerColor.WHITE;
+                gameArchiveService.archive(room, winner, org.scoula.game.EndReason.WIN_5);
                 log.info("[GAME_WIN] roomId={} winner=\"{}\" turn={}", roomId, name, turn);
                 broadcast(roomId, RoomResponseMessage.builder()
                         .roomId(roomId)

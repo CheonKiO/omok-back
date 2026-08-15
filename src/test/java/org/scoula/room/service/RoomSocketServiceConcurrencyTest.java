@@ -39,6 +39,7 @@ class RoomSocketServiceConcurrencyTest {
         roomService = mock(RoomService.class);
         GameService gameService = new GameService(new RenjuRuleEngine());
         service = new RoomSocketService(roomBroadcaster, roomService, gameService,
+                org.mockito.Mockito.mock(org.scoula.game.GameArchiveService.class),
                 org.mockito.Mockito.mock(org.springframework.scheduling.TaskScheduler.class));
     }
 

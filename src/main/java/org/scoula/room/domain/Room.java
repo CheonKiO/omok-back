@@ -94,6 +94,13 @@ public class Room {
         return principal == null ? null : playerIdByPrincipal.get(principal);
     }
 
+    /** principal 자리의 표시용 닉네임(players에서 조회). 미바인딩/미존재면 null. */
+    public String playerNameOf(String principal) {
+        String pid = playerIdOf(principal);
+        if (pid == null || players == null) return null;
+        return players.stream().filter(p -> p.id().equals(pid)).map(Player::name).findFirst().orElse(null);
+    }
+
     /**
      * principal의 자리를 정리한다(leave/grace-expire 공용). 맵에서 제거하고,
      * 그 principal이 흑/백 자리 소유자였다면 해당 자리도 비운다.
