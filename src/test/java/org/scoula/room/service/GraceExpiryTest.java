@@ -84,6 +84,7 @@ class GraceExpiryTest {
 
         RoomResponseMessage end = captureGameEnd();
         assertEquals("WHITE", end.getWinner());
+        assertEquals(ROOM_ID, end.getRoomId()); // 다른 세 GAME_END 경로와 동일한 계약
         verify(gameArchiveService).archive(eq(room), eq(WinnerColor.WHITE), eq(EndReason.DISCONNECT));
     }
 

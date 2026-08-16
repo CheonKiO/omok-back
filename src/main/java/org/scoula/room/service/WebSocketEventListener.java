@@ -189,6 +189,7 @@ public class WebSocketEventListener {
             roomBroadcaster.broadcast(
                     roomId,
                     RoomResponseMessage.builder()
+                            .roomId(roomId)
                             .type(MessageType.GAME_END)
                             .message("상대가 연결을 회복하지 못해 게임이 종료되었습니다.")
                             .winner(graceWinner.name())
