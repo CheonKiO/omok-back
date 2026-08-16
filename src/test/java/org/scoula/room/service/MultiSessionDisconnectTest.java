@@ -35,6 +35,7 @@ class MultiSessionDisconnectTest {
     private RoomBroadcaster roomBroadcaster;
     private RoomService roomService;
     private WebSocketEventListener listener;
+    private Room room;
 
     private static final String ROOM_ID = "room-1";
     private static final String PRINCIPAL = "user:2";
@@ -46,7 +47,7 @@ class MultiSessionDisconnectTest {
         listener = new WebSocketEventListener(roomBroadcaster, roomService,
                 mock(org.scoula.game.GameArchiveService.class));
 
-        Room room = Room.builder()
+        room = Room.builder()
                 .roomId(ROOM_ID)
                 .players(new ArrayList<>(List.of(new Player("p1", "나"), new Player("p2", "상대"))))
                 .board(new int[15][15])
@@ -90,6 +91,30 @@ class MultiSessionDisconnectTest {
         listener.registerSession(PRINCIPAL, ROOM_ID, "sess-B");
 
         listener.handleWebSocketDisconnectListener(disconnectEvent("sess-A"));
+        listener.handleWebSocketDisconnectListener(disconnectEvent("sess-B"));
+
+        verify(roomBroadcaster, times(1)).broadcast(eq(ROOM_ID),
+                argThat(m -> m.getType() == MessageType.DISCONNECTED));
+    }
+
+    @Test
+    void 정상_퇴장_후_재입장한_사용자도_끊기면_유예를_시작한다() {
+        listener.registerSession(PRINCIPAL, ROOM_ID, "sess-A");
+
+        // HTTP leave(RoomServiceImpl.leaveRoom)로 정상 퇴장 → 자리 언바인딩. 뒤이어 소켓이 닫힌다.
+        room.getPlayers().removeIf(p -> p.id().equals("p1"));
+        room.unbindMember(PRINCIPAL);
+        room.setPlaying(false);
+        listener.handleWebSocketDisconnectListener(disconnectEvent("sess-A"));
+
+        // 같은 방에 다시 입장해 대국 재개. 죽은 sess-A가 레지스트리에 남아 있으면
+        // 아래 진짜 끊김이 "다른 탭 생존"으로 오인돼 유예가 통째로 사라진다.
+        room.getPlayers().add(new Player("p1", "나"));
+        room.bindMember(PRINCIPAL, "p1", "나");
+        room.setBlackPrincipal(PRINCIPAL);
+        room.setPlaying(true);
+        listener.registerSession(PRINCIPAL, ROOM_ID, "sess-B");
+
         listener.handleWebSocketDisconnectListener(disconnectEvent("sess-B"));
 
         verify(roomBroadcaster, times(1)).broadcast(eq(ROOM_ID),

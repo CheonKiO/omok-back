@@ -99,6 +99,15 @@ public class WebSocketEventListener {
         // 신원 앵커는 CONNECT에서 바인딩된 principal(위조 불가). 이벤트 우선, 없으면 세션 attrs fallback.
         String principal = event.getUser() != null ? event.getUser().getName() : (String) attrs.get("principal");
 
+        // 같은 사용자의 다른 탭이 아직 살아 있으면 이 세션 종료는 무시한다.
+        // (무시하지 않으면 접속 중인 사용자가 30초 뒤 몰수패한다.)
+        // 아래 방/자리 검사보다 앞에 둔다: 정상 퇴장·방 소멸 경로에서 early return에 걸리면
+        // 세션이 해제되지 않아, 같은 방에 재입장한 뒤의 진짜 끊김이 통째로 무시된다.
+        if (!unregisterSession(principal, roomId, sessionId)) {
+            log.debug("[WS_CLOSE] 다른 탭 세션 생존 → 유예 생략 principal={} roomId={}", principal, roomId);
+            return;
+        }
+
         Room room = roomService.getRoom(roomId);
         if (room == null) return;
 
@@ -106,13 +115,6 @@ public class WebSocketEventListener {
         // (attrs.playerId는 WS join의 무검증 sender.id라, 그대로 쓰면 남의 자리를 방출하는 자리탈취 벡터.)
         String playerId = principal != null ? room.playerIdOf(principal) : null;
         if (playerId == null) return; // 비멤버/익명 → 정리할 자리 없음
-
-        // 같은 사용자의 다른 탭이 아직 살아 있으면 이 세션 종료는 무시한다.
-        // (무시하지 않으면 접속 중인 사용자가 30초 뒤 몰수패한다.)
-        if (!unregisterSession(principal, roomId, sessionId)) {
-            log.debug("[WS_CLOSE] 다른 탭 세션 생존 → 유예 생략 principal={} roomId={}", principal, roomId);
-            return;
-        }
 
         // 이미 HTTP leave API로 정상 퇴장한 경우 무시
         boolean isStillInRoom = room.getPlayers().stream().anyMatch(p -> p.id().equals(playerId));
