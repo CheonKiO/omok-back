@@ -106,11 +106,13 @@ WebSocket 메시지의 `sender` 같은 **payload 필드는 클라이언트가 �
 
 | 상황 | 처리 |
 |---|---|
-| 게임 중 소켓 끊김 | 30초 유예 → 재접속 시 게임 속행 / 초과 시 자동 퇴장(몰수) |
+| 게임 중 소켓 끊김 | 30초 유예 → 재접속 시 게임 속행 / 초과 시 몰수(`GAME_END`) 후 자동 퇴장(`LEAVE`) |
 | 게임 중이 아닐 때 끊김 | 즉시 퇴장 |
 | 나가기 버튼 클릭 | 명시적 의사표현이므로 유예 없이 즉시 처리 |
 
-`ScheduledExecutorService`로 유예 타이머를 걸고, 재접속(JOIN) 시 해당 타이머를 (위조 불가한 principal 기준으로) 취소하는 구조입니다.
+`ScheduledExecutorService`로 유예 타이머를 걸고, 재접속(JOIN) 시 해당 타이머를 (위조 불가한 principal 기준으로) 취소하는 구조입니다. 유예가 만료되면 승자를 담은 `GAME_END`를 먼저 브로드캐스트한 뒤 `LEAVE`를 보내, 상대가 "몰수로 이겼다"는 사실과 자리 정리를 각각 받게 했습니다.
+
+같은 사용자가 한 방을 여러 탭으로 여는 경우에 대비해 `(principal, roomId)`별 활성 WebSocket 세션을 추적하고, **그 사용자의 마지막 세션이 끊길 때만** 유예/몰수를 실행합니다. 탭 하나를 닫아도 멀쩡히 접속 중인 사용자가 30초 뒤 몰수패하지 않도록 하는 **서버 측 안전망**입니다(프론트엔드에서의 중복 탭 진입 차단은 별도 과제).
 
 > 구현: [`WebSocketEventListener.java`](src/main/java/org/scoula/room/service/WebSocketEventListener.java)
 
@@ -207,6 +209,8 @@ resources/
 | POST | `/api/rooms/join/{roomId}?password=` | 방 입장 (인증 필요) |
 | POST | `/api/rooms/leave/{roomId}` | 방 퇴장 (인증 필요, 신원은 principal) |
 
+방 조회 응답의 `board`(길이 225)·`turn`은 **게임 진행 중(`isPlaying=true`)일 때만** 실제 대국 상태를 담습니다. 종료된 방은 빈 판과 `turn=1`로 내려가, 새로 들어온 사람이 직전 대국의 돌을 보지 않습니다(서버가 보관한 판 자체는 유지되고 조회 응답에서만 비웁니다).
+
 ### WebSocket
 
 | | |
@@ -215,6 +219,7 @@ resources/
 | 구독 | `/topic/room/{roomId}` · 개인 에러 `/user/queue/errors` |
 | 발행 | `/app/room/{roomId}/join` · `/app/ready` · `/app/cancel` · `/app/surrender` · `/app/timeout` · `/app/move` |
 | 인증 | CONNECT 시 JWT → principal 바인딩, 이후 액션은 principal + 방 멤버십/턴 소유로 인가 |
+| 종료 메시지 | `GAME_END`에는 승자 자리를 명시하는 `winner` 필드(`"BLACK"` / `"WHITE"`)가 실립니다. 승리·기권·시간초과·끊김몰수 4개 종료 경로 모두 동일합니다 |
 
 <br>
 

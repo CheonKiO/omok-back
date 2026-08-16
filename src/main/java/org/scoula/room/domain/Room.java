@@ -61,7 +61,7 @@ public class Room {
 
     /**
      * HTTP join 시 인증 principal을 키로 자리를 기록한다(서로 다른 principal 최대 2).
-     * 같은 principal 재호출은 표시 라벨만 갱신하고, 이미 2자리가 찬 방에 새 principal이면 거부한다.
+     * 같은 principal 재호출은 playerId 매핑만 덮어쓰고, 이미 2자리가 찬 방에 새 principal이면 거부한다.
      * 키가 principal이라 클라가 보낸 playerId로는 남의 자리를 건드릴 수 없다. 인증 경로에서만 호출.
      */
     public void bindMember(String principal, String playerId) {
