@@ -64,6 +64,11 @@ public class SecurityConfig {
     // CORS를 Security 필터체인에 등록한다. MVC 레벨(WebMvcConfig)에만 두면 JWT 필터가
     // 컨트롤러 도달 전 401을 반환할 때 CORS 헤더가 빠져 브라우저가 응답을 차단하고,
     // 프론트 인터셉터가 401을 인지하지 못해 토큰 refresh가 트리거되지 않는다.
+    //
+    // 반드시 /api/** 로만 한정한다. /game(SockJS 핸드셰이크 /game/info 포함)의 CORS는
+    // WebSocketConfig.setAllowedOrigins가 담당하며 자격증명(withCredentials) 응답에
+    // Access-Control-Allow-Credentials: true 를 넣어준다. 여기서 /** 로 걸면 이 필터가
+    // /game/info 를 먼저 가로채 credentials 없는 응답을 내보내 SockJS 연결이 깨진다.
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
@@ -72,7 +77,7 @@ public class SecurityConfig {
         config.setAllowedHeaders(List.of("*"));
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
+        source.registerCorsConfiguration("/api/**", config);
         return source;
     }
 }
