@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -28,6 +29,9 @@ public class WebSocketEventListener {
     private final org.scoula.game.GameArchiveService gameArchiveService;
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(4);
     private final ConcurrentHashMap<String, ScheduledFuture<?>> pendingDisconnects = new ConcurrentHashMap<>();
+    // (principal, roomId)별 활성 WS 세션 집합. 같은 사용자가 여러 탭을 열었을 때
+    // 마지막 세션이 끊길 때만 유예/퇴장을 처리하기 위한 근거(D5).
+    private final ConcurrentHashMap<String, Set<String>> sessionsByMember = new ConcurrentHashMap<>();
 
     public WebSocketEventListener(RoomBroadcaster roomBroadcaster, RoomService roomService,
                                   org.scoula.game.GameArchiveService gameArchiveService) {
@@ -54,6 +58,34 @@ public class WebSocketEventListener {
         return false;
     }
 
+    private static String memberKey(String principal, String roomId) {
+        return principal + "|" + roomId;
+    }
+
+    /** WS JOIN 시 세션을 등록한다. 인증 principal이 없으면 추적하지 않는다. */
+    public void registerSession(String principal, String roomId, String sessionId) {
+        if (principal == null || roomId == null || sessionId == null) return;
+        // compute로 등록/해제를 같은 키 락 아래 직렬화한다. computeIfAbsent 후 별도로 add하면
+        // 해제 쪽이 그 사이 빈 집합을 맵에서 제거해 방금 등록한 세션을 잃을 수 있다.
+        sessionsByMember.compute(memberKey(principal, roomId), (k, sessions) -> {
+            Set<String> target = (sessions == null) ? ConcurrentHashMap.newKeySet() : sessions;
+            target.add(sessionId);
+            return target;
+        });
+    }
+
+    /** 세션을 해제하고, 그 사용자의 마지막 세션이었으면 true를 반환한다. */
+    private boolean unregisterSession(String principal, String roomId, String sessionId) {
+        if (principal == null || roomId == null) return true;
+        // 남은 세션이 없으면 키까지 제거(맵 누수 방지)하고 null을 돌려받는다.
+        // 애초에 추적하지 못한 세션도 null → true, 즉 기존 유예/퇴장 동작을 유지한다.
+        Set<String> remaining = sessionsByMember.computeIfPresent(memberKey(principal, roomId), (k, sessions) -> {
+            sessions.remove(sessionId);
+            return sessions.isEmpty() ? null : sessions;
+        });
+        return remaining == null;
+    }
+
     @EventListener
     public void handleWebSocketDisconnectListener(SessionDisconnectEvent event) {
         StompHeaderAccessor headerAccessor = StompHeaderAccessor.wrap(event.getMessage());
@@ -74,6 +106,13 @@ public class WebSocketEventListener {
         // (attrs.playerId는 WS join의 무검증 sender.id라, 그대로 쓰면 남의 자리를 방출하는 자리탈취 벡터.)
         String playerId = principal != null ? room.playerIdOf(principal) : null;
         if (playerId == null) return; // 비멤버/익명 → 정리할 자리 없음
+
+        // 같은 사용자의 다른 탭이 아직 살아 있으면 이 세션 종료는 무시한다.
+        // (무시하지 않으면 접속 중인 사용자가 30초 뒤 몰수패한다.)
+        if (!unregisterSession(principal, roomId, sessionId)) {
+            log.debug("[WS_CLOSE] 다른 탭 세션 생존 → 유예 생략 principal={} roomId={}", principal, roomId);
+            return;
+        }
 
         // 이미 HTTP leave API로 정상 퇴장한 경우 무시
         boolean isStillInRoom = room.getPlayers().stream().anyMatch(p -> p.id().equals(playerId));

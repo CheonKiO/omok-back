@@ -45,6 +45,10 @@ public class RoomSocketController {
             if (principalName != null) attrs.put("principal", principalName);
         }
 
+        // 중복 탭 안전망: (principal, roomId)별 활성 세션을 등록해 두면
+        // 한 탭만 닫혔을 때 유예/몰수가 잘못 발동하지 않는다.
+        webSocketEventListener.registerSession(principalName, roomId, headerAccessor.getSessionId());
+
         MessageType type = isReconnect ? MessageType.RECONNECT : MessageType.JOIN;
         roomBroadcaster.broadcast(roomId,
                 RoomResponseMessage.builder()
