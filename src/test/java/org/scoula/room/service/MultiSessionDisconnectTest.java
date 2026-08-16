@@ -2,9 +2,11 @@ package org.scoula.room.service;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.scoula.room.controller.RoomSocketController;
 import org.scoula.room.domain.Player;
 import org.scoula.room.domain.Room;
 import org.scoula.room.dto.MessageType;
+import org.scoula.room.dto.RoomRequestMessage;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.simp.stomp.StompCommand;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
@@ -62,16 +64,33 @@ class MultiSessionDisconnectTest {
     }
 
     private SessionDisconnectEvent disconnectEvent(String sessionId) {
+        return disconnectEvent(sessionId, ROOM_ID);
+    }
+
+    /** attrs.roomId가 임의의 방을 가리키는 소켓 종료 이벤트(마지막 JOIN이 남긴 값). */
+    private SessionDisconnectEvent disconnectEvent(String sessionId, String attrRoomId) {
         StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.DISCONNECT);
         accessor.setSessionId(sessionId);
         Map<String, Object> attrs = new HashMap<>();
-        attrs.put("roomId", ROOM_ID);
+        attrs.put("roomId", attrRoomId);
         attrs.put("principal", PRINCIPAL);
         accessor.setSessionAttributes(attrs);
         Message<byte[]> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
         Principal user = () -> PRINCIPAL;
         return new SessionDisconnectEvent(this, message, sessionId,
                 org.springframework.web.socket.CloseStatus.NORMAL, user);
+    }
+
+    /** 한 소켓 세션의 STOMP 헤더. attrs 맵은 실제 세션처럼 JOIN 간에 공유된다. */
+    private StompHeaderAccessor joinAccessor(String sessionId, Map<String, Object> attrs) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SEND);
+        accessor.setSessionId(sessionId);
+        accessor.setSessionAttributes(attrs);
+        return accessor;
+    }
+
+    private RoomRequestMessage joinMessage(String roomId) {
+        return new RoomRequestMessage(new Player("p1", "나"), roomId, MessageType.JOIN, null);
     }
 
     @Test
@@ -116,6 +135,49 @@ class MultiSessionDisconnectTest {
         listener.registerSession(PRINCIPAL, ROOM_ID, "sess-B");
 
         listener.handleWebSocketDisconnectListener(disconnectEvent("sess-B"));
+
+        verify(roomBroadcaster, times(1)).broadcast(eq(ROOM_ID),
+                argThat(m -> m.getType() == MessageType.DISCONNECTED));
+    }
+
+    /**
+     * 세션 키의 principal 절반을 고정한다. 같은 방에 상대(다른 principal)가 접속해 있어도
+     * 내 마지막 세션이 끊기면 유예는 정상적으로 시작돼야 한다.
+     * 키가 roomId만이면 상대 세션이 "내 다른 탭"으로 오인돼 유예가 통째로 사라진다.
+     */
+    @Test
+    void 같은_방에_있는_다른_사용자의_세션은_내_유예를_막지_않는다() {
+        listener.registerSession(PRINCIPAL, ROOM_ID, "sess-A");
+        listener.registerSession("user:3", ROOM_ID, "sess-C");
+
+        listener.handleWebSocketDisconnectListener(disconnectEvent("sess-A"));
+
+        verify(roomBroadcaster, times(1)).broadcast(eq(ROOM_ID),
+                argThat(m -> m.getType() == MessageType.DISCONNECTED));
+    }
+
+    /**
+     * 한 세션이 방 A로 JOIN한 뒤 존재하지 않는 방으로 다시 JOIN하면 attrs.roomId가 덮인다.
+     * 소켓 종료 시 해제되는 키는 마지막 attrs.roomId 하나뿐이라, 방 A 키에 죽은 세션이 영구히 남는다.
+     * 그러면 이후 방 A에서의 진짜 끊김이 "다른 탭 생존"으로 오인돼 유예/몰수가 영영 발동하지 않는다.
+     */
+    @Test
+    void 다른_방으로_재JOIN해도_이전_방에_죽은_세션이_남지_않는다() {
+        RoomSocketController controller = new RoomSocketController(
+                roomBroadcaster, mock(RoomSocketService.class), listener);
+
+        Map<String, Object> attrs = new HashMap<>();
+        Principal user = () -> PRINCIPAL;
+
+        controller.joinRoom(joinMessage(ROOM_ID), joinAccessor("sess-A", attrs), user);
+        controller.joinRoom(joinMessage("junk"), joinAccessor("sess-A", attrs), user);
+
+        // 소켓 종료. 핸들러가 보는 attrs.roomId는 "junk"뿐이다.
+        listener.handleWebSocketDisconnectListener(disconnectEvent("sess-A", "junk"));
+
+        // 같은 사용자가 방 A에서 새 세션으로 플레이하다 진짜로 끊긴다.
+        listener.registerSession(PRINCIPAL, ROOM_ID, "sess-B");
+        listener.handleWebSocketDisconnectListener(disconnectEvent("sess-B", ROOM_ID));
 
         verify(roomBroadcaster, times(1)).broadcast(eq(ROOM_ID),
                 argThat(m -> m.getType() == MessageType.DISCONNECTED));

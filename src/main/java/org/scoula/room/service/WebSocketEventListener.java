@@ -74,6 +74,17 @@ public class WebSocketEventListener {
         });
     }
 
+    /**
+     * 한 세션이 다른 방으로 JOIN할 때 이전 방 키에서 그 세션을 떼어낸다.
+     * 소켓 종료 시 해제되는 키는 마지막 attrs.roomId 하나뿐이라, 이 정리가 없으면
+     * 이전 방 키에 죽은 sessionId가 영구히 남아(레지스트리도 무한 증가) 그 방에서의
+     * 진짜 끊김이 "다른 탭 생존"으로 오인돼 유예/몰수가 영영 발동하지 않는다.
+     */
+    public void releaseSession(String principal, String roomId, String sessionId) {
+        if (sessionId == null) return; // registerSession도 null은 추적하지 않는다
+        unregisterSession(principal, roomId, sessionId);
+    }
+
     /** 세션을 해제하고, 그 사용자의 마지막 세션이었으면 true를 반환한다. */
     private boolean unregisterSession(String principal, String roomId, String sessionId) {
         if (principal == null || roomId == null) return true;
