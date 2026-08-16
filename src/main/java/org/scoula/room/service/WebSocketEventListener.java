@@ -99,15 +99,26 @@ public class WebSocketEventListener {
                 // 끊김 몰수: 끊긴 principal이 패 → 상대 승. leaveRoom(자리 principal unbind) 전에 기보 저장.
                 // 다른 종료 경로(processMove/surrender/timeout)와 가시성·중복저장 일관성 위해 room 락 안에서.
                 Room graceRoom = roomService.getRoom(roomId);
+                org.scoula.game.WinnerColor graceWinner = null;
                 if (graceRoom != null) {
                     synchronized (graceRoom) {
                         if (graceRoom.isPlaying()) {
-                            org.scoula.game.WinnerColor w = gracePrincipal.equals(graceRoom.blackPrincipal())
+                            graceWinner = gracePrincipal.equals(graceRoom.blackPrincipal())
                                     ? org.scoula.game.WinnerColor.WHITE : org.scoula.game.WinnerColor.BLACK;
                             graceRoom.setPlaying(false); // 종료 표시 → 타 경로 이중저장 차단
-                            gameArchiveService.archive(graceRoom, w, org.scoula.game.EndReason.DISCONNECT);
+                            gameArchiveService.archive(graceRoom, graceWinner, org.scoula.game.EndReason.DISCONNECT);
                         }
                     }
+                }
+                if (graceWinner != null) {
+                    roomBroadcaster.broadcast(
+                            roomId,
+                            RoomResponseMessage.builder()
+                                    .type(MessageType.GAME_END)
+                                    .message("상대가 연결을 회복하지 못해 게임이 종료되었습니다.")
+                                    .winner(graceWinner.name())
+                                    .build()
+                    );
                 }
                 roomService.leaveRoom(roomId, playerId);
                 roomBroadcaster.broadcast(

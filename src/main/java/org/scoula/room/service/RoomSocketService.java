@@ -117,6 +117,7 @@ public class RoomSocketService {
         Room room = roomService.getRoom(roomId);
         if (room == null) return;
         String name;
+        org.scoula.game.WinnerColor winner;
         synchronized (room) {
             if (!room.isMember(principal)) return;
             if (!room.isPlaying()) return; // 이미 종료된 게임 → 중복 처리/저장 방지
@@ -124,7 +125,7 @@ public class RoomSocketService {
             room.setPlaying(false);
             room.setReady(0);
             // 기권자(principal)가 패 → 상대 승. 기보 저장.
-            org.scoula.game.WinnerColor winner = principal.equals(room.blackPrincipal())
+            winner = principal.equals(room.blackPrincipal())
                     ? org.scoula.game.WinnerColor.WHITE : org.scoula.game.WinnerColor.BLACK;
             gameArchiveService.archive(room, winner, org.scoula.game.EndReason.SURRENDER);
         }
@@ -134,6 +135,7 @@ public class RoomSocketService {
                 .roomId(roomId)
                 .type(MessageType.GAME_END)
                 .message(name + "님이 기권하셨습니다.")
+                .winner(winner.name())
                 .build());
     }
 
@@ -141,13 +143,14 @@ public class RoomSocketService {
         Room room = roomService.getRoom(roomId);
         if (room == null) return;
         String name;
+        org.scoula.game.WinnerColor winner;
         synchronized (room) {
             if (!room.isMember(principal)) return;
             if (!room.isPlaying()) return; // 이미 종료된 게임 → 중복 처리/저장 방지
             name = seatName(room, principal);
             room.setPlaying(false);
             // 시간초과자(principal)가 패 → 상대 승. 기보 저장.
-            org.scoula.game.WinnerColor winner = principal.equals(room.blackPrincipal())
+            winner = principal.equals(room.blackPrincipal())
                     ? org.scoula.game.WinnerColor.WHITE : org.scoula.game.WinnerColor.BLACK;
             gameArchiveService.archive(room, winner, org.scoula.game.EndReason.TIMEOUT);
         }
@@ -157,6 +160,7 @@ public class RoomSocketService {
                 .roomId(roomId)
                 .type(MessageType.GAME_END)
                 .message(name + "님이 시간을 초과하여 게임이 종료되었습니다.")
+                .winner(winner.name())
                 .build());
     }
 
@@ -192,6 +196,7 @@ public class RoomSocketService {
                         .message(name + "님이 승리하셨습니다")
                         .index(index)
                         .turn(turn)
+                        .winner(winner.name())
                         .build());
             } else {
                 broadcast(roomId, RoomResponseMessage.builder()

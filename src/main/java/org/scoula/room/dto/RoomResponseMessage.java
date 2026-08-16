@@ -19,4 +19,6 @@ public class RoomResponseMessage {
     private Integer index;
     private Integer turn;
     private String blackPlayer;
+    /** GAME_END 전용. "BLACK" | "WHITE". 프론트가 승자 라벨을 추론하지 않도록 서버가 명시한다. */
+    private String winner;
 }
