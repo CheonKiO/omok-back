@@ -146,42 +146,9 @@ public class WebSocketEventListener {
             );
 
             final String gracePrincipal = principal;
-            ScheduledFuture<?> future = scheduler.schedule(() -> {
-                pendingDisconnects.remove(gracePrincipal);
-                // 끊김 몰수: 끊긴 principal이 패 → 상대 승. leaveRoom(자리 principal unbind) 전에 기보 저장.
-                // 다른 종료 경로(processMove/surrender/timeout)와 가시성·중복저장 일관성 위해 room 락 안에서.
-                Room graceRoom = roomService.getRoom(roomId);
-                org.scoula.game.WinnerColor graceWinner = null;
-                if (graceRoom != null) {
-                    synchronized (graceRoom) {
-                        if (graceRoom.isPlaying()) {
-                            graceWinner = gracePrincipal.equals(graceRoom.blackPrincipal())
-                                    ? org.scoula.game.WinnerColor.WHITE : org.scoula.game.WinnerColor.BLACK;
-                            graceRoom.setPlaying(false); // 종료 표시 → 타 경로 이중저장 차단
-                            gameArchiveService.archive(graceRoom, graceWinner, org.scoula.game.EndReason.DISCONNECT);
-                        }
-                    }
-                }
-                if (graceWinner != null) {
-                    roomBroadcaster.broadcast(
-                            roomId,
-                            RoomResponseMessage.builder()
-                                    .type(MessageType.GAME_END)
-                                    .message("상대가 연결을 회복하지 못해 게임이 종료되었습니다.")
-                                    .winner(graceWinner.name())
-                                    .build()
-                    );
-                }
-                roomService.leaveRoom(roomId, playerId);
-                roomBroadcaster.broadcast(
-                        roomId,
-                        RoomResponseMessage.builder()
-                                .type(MessageType.LEAVE)
-                                .sender(playerId)
-                                .build()
-                );
-                log.warn("[GRACE_EXPIRE] playerId={} principal={} roomId={}", playerId, gracePrincipal, roomId);
-            }, GRACE_PERIOD_SECONDS, TimeUnit.SECONDS);
+            ScheduledFuture<?> future = scheduler.schedule(
+                    () -> expireGrace(roomId, playerId, gracePrincipal),
+                    GRACE_PERIOD_SECONDS, TimeUnit.SECONDS);
 
             pendingDisconnects.put(principal, future);
         } else {
@@ -196,5 +163,46 @@ public class WebSocketEventListener {
             );
             log.info("[WS_DISCONNECT] playerId={} roomId={} reason=NOT_PLAYING", playerId, roomId);
         }
+    }
+
+    /**
+     * 유예 만료 시 실행되는 몰수 처리. GRACE_PERIOD_SECONDS를 기다리지 않고 이 경로를
+     * 직접 검증할 수 있도록 스케줄 람다 본문을 그대로 분리한 것으로, 동작은 동일하다.
+     */
+    void expireGrace(String roomId, String playerId, String gracePrincipal) {
+        pendingDisconnects.remove(gracePrincipal);
+        // 끊김 몰수: 끊긴 principal이 패 → 상대 승. leaveRoom(자리 principal unbind) 전에 기보 저장.
+        // 다른 종료 경로(processMove/surrender/timeout)와 가시성·중복저장 일관성 위해 room 락 안에서.
+        Room graceRoom = roomService.getRoom(roomId);
+        org.scoula.game.WinnerColor graceWinner = null;
+        if (graceRoom != null) {
+            synchronized (graceRoom) {
+                if (graceRoom.isPlaying()) {
+                    graceWinner = gracePrincipal.equals(graceRoom.blackPrincipal())
+                            ? org.scoula.game.WinnerColor.WHITE : org.scoula.game.WinnerColor.BLACK;
+                    graceRoom.setPlaying(false); // 종료 표시 → 타 경로 이중저장 차단
+                    gameArchiveService.archive(graceRoom, graceWinner, org.scoula.game.EndReason.DISCONNECT);
+                }
+            }
+        }
+        if (graceWinner != null) {
+            roomBroadcaster.broadcast(
+                    roomId,
+                    RoomResponseMessage.builder()
+                            .type(MessageType.GAME_END)
+                            .message("상대가 연결을 회복하지 못해 게임이 종료되었습니다.")
+                            .winner(graceWinner.name())
+                            .build()
+            );
+        }
+        roomService.leaveRoom(roomId, playerId);
+        roomBroadcaster.broadcast(
+                roomId,
+                RoomResponseMessage.builder()
+                        .type(MessageType.LEAVE)
+                        .sender(playerId)
+                        .build()
+        );
+        log.warn("[GRACE_EXPIRE] playerId={} principal={} roomId={}", playerId, gracePrincipal, roomId);
     }
 }
