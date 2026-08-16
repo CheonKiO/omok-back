@@ -53,7 +53,7 @@ class RoomSocketServiceConcurrencyTest {
                 .board(new int[15][15])
                 .isPlaying(true)
                 .build();
-        room.bindMember(BLACK_PRINCIPAL, BLACK_ID, "흑돌");
+        room.bindMember(BLACK_PRINCIPAL, BLACK_ID);
         room.setBlackPrincipal(BLACK_PRINCIPAL);
         return room;
     }

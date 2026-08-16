@@ -84,9 +84,8 @@ public class RenjuRuleEngine {
 
     /**
      * 승리 판정. board[index]에 놓인 돌의 색을 기준으로 흑은 정확히 5목, 백은 5목 이상이면 승리.
-     * blackTurn은 인터페이스상 착수자 색 힌트로 받지만, 색 판정의 기준은 항상 board(위 규칙 그대로)다.
      */
-    public boolean isWin(int[][] board, int index, boolean blackTurn) {
+    public boolean isWin(int[][] board, int index) {
         Position pos = indexToPosition(index);
         StoneColor color = getStoneAt(board, pos);
 

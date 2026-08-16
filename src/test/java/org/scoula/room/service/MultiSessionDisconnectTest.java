@@ -54,8 +54,8 @@ class MultiSessionDisconnectTest {
                 .turn(1)
                 .isPlaying(true)
                 .build();
-        room.bindMember(PRINCIPAL, "p1", "나");
-        room.bindMember("user:3", "p2", "상대");
+        room.bindMember(PRINCIPAL, "p1");
+        room.bindMember("user:3", "p2");
         room.setBlackPrincipal(PRINCIPAL);
         room.setWhitePrincipal("user:3");
         when(roomService.getRoom(ROOM_ID)).thenReturn(room);
@@ -110,7 +110,7 @@ class MultiSessionDisconnectTest {
         // 같은 방에 다시 입장해 대국 재개. 죽은 sess-A가 레지스트리에 남아 있으면
         // 아래 진짜 끊김이 "다른 탭 생존"으로 오인돼 유예가 통째로 사라진다.
         room.getPlayers().add(new Player("p1", "나"));
-        room.bindMember(PRINCIPAL, "p1", "나");
+        room.bindMember(PRINCIPAL, "p1");
         room.setBlackPrincipal(PRINCIPAL);
         room.setPlaying(true);
         listener.registerSession(PRINCIPAL, ROOM_ID, "sess-B");

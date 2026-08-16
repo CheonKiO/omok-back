@@ -16,7 +16,8 @@ public class GameService {
     private final RenjuRuleEngine engine;
 
     public boolean checkGameEnd(Room room, int index) {
-        return engine.isWin(room.getBoard(), index, room.getTurn() % 2 == 1);
+        // 승리 여부는 board와 index만으로 판정된다(놓인 돌 색은 board[index]에 이미 있다).
+        return engine.isWin(room.getBoard(), index);
     }
 
     public int countOpenThrees(int[][] board, int index) {

@@ -34,8 +34,8 @@ class RoomMembershipTest {
     @Test
     void bindsMemberByPrincipal_notPayloadId() {
         Room r = emptyRoom();
-        r.bindMember("user:2", "uuid-A", "흑돌");
-        r.bindMember("guest:x", "uuid-B", "백돌");
+        r.bindMember("user:2", "uuid-A");
+        r.bindMember("guest:x", "uuid-B");
 
         assertTrue(r.isMember("user:2"));
         assertTrue(r.isMember("guest:x"));
@@ -48,9 +48,9 @@ class RoomMembershipTest {
     @Test
     void bindMemberIsCappedAtTwoSeats() {
         Room r = emptyRoom();
-        r.bindMember("user:1", "uuid-A", "A");
-        r.bindMember("user:2", "uuid-B", "B");
-        r.bindMember("user:3", "uuid-C", "C"); // 초과 → 무시
+        r.bindMember("user:1", "uuid-A");
+        r.bindMember("user:2", "uuid-B");
+        r.bindMember("user:3", "uuid-C"); // 초과 → 무시
 
         assertTrue(r.isMember("user:1"));
         assertTrue(r.isMember("user:2"));
@@ -60,9 +60,9 @@ class RoomMembershipTest {
     @Test
     void attackerCannotStealSeatByReusingVictimPlayerId() {
         Room r = emptyRoom();
-        r.bindMember("user:victim", "vid", "피해자");
+        r.bindMember("user:victim", "vid");
         // 공격자가 피해자의 표시용 player.id를 그대로 실어 join.
-        r.bindMember("user:attacker", "vid", "공격자");
+        r.bindMember("user:attacker", "vid");
 
         // 피해자는 여전히 멤버(락아웃/탈취 없음).
         assertTrue(r.isMember("user:victim"));
@@ -84,8 +84,8 @@ class RoomMembershipTest {
                 .board(new int[15][15])
                 .isPlaying(false)
                 .build();
-        room.bindMember("user:2", "uuid-A", "흑돌");
-        room.bindMember("guest:x", "uuid-B", "백돌");
+        room.bindMember("user:2", "uuid-A");
+        room.bindMember("guest:x", "uuid-B");
 
         RoomService roomService = mock(RoomService.class);
         when(roomService.getRoom("room-1")).thenReturn(room);
@@ -116,8 +116,8 @@ class RoomMembershipTest {
     @Test
     void unbindMemberClearsSeatAndTurnOwnership() {
         Room r = emptyRoom();
-        r.bindMember("user:1", "uuid-A", "A");
-        r.bindMember("user:2", "uuid-B", "B");
+        r.bindMember("user:1", "uuid-A");
+        r.bindMember("user:2", "uuid-B");
         r.setBlackPrincipal("user:1");
         r.setWhitePrincipal("user:2");
 
@@ -184,8 +184,8 @@ class RoomMembershipTest {
                 .turn(1)
                 .board(new int[15][15])
                 .build();
-        room.bindMember("user:1", "uuid-A", "A");
-        room.bindMember("user:2", "uuid-B", "B");
+        room.bindMember("user:1", "uuid-A");
+        room.bindMember("user:2", "uuid-B");
 
         RoomService roomService = mock(RoomService.class);
         when(roomService.getRoom("room-1")).thenReturn(room);

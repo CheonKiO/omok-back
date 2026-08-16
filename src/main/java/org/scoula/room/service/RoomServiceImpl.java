@@ -49,12 +49,12 @@ public class RoomServiceImpl implements RoomService {
         if (owner != null && !owner.equals(principal)) return 0;
 
         if (room.getPlayers().contains(player)) {
-            room.bindMember(principal, player.id(), player.name()); // 재입장: principal 재확인
+            room.bindMember(principal, player.id()); // 재입장: principal 재확인
             return 1; // 이미 참여
         }
         room.getPlayers().add(player);
         // 인증 principal을 자리에 기록. payload player.id/name은 표시용일 뿐.
-        room.bindMember(principal, player.id(), player.name());
+        room.bindMember(principal, player.id());
         return 1;
     }
 

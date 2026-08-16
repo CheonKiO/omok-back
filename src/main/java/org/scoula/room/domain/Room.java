@@ -64,7 +64,7 @@ public class Room {
      * 같은 principal 재호출은 표시 라벨만 갱신하고, 이미 2자리가 찬 방에 새 principal이면 거부한다.
      * 키가 principal이라 클라가 보낸 playerId로는 남의 자리를 건드릴 수 없다. 인증 경로에서만 호출.
      */
-    public void bindMember(String principal, String playerId, String name) {
+    public void bindMember(String principal, String playerId) {
         if (principal == null || playerId == null) return;
         if (!playerIdByPrincipal.containsKey(principal) && playerIdByPrincipal.size() >= 2) return;
         playerIdByPrincipal.put(principal, playerId);

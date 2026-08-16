@@ -25,8 +25,8 @@ class GameArchiveServiceTest {
                 .board(new int[15][15])
                 .moveHistory(new ArrayList<>(List.of(112, 113)))
                 .build();
-        room.bindMember(blackPrincipal, "uuidB", "흑돌");
-        room.bindMember(whitePrincipal, "uuidW", "백돌");
+        room.bindMember(blackPrincipal, "uuidB");
+        room.bindMember(whitePrincipal, "uuidW");
         room.setBlackPrincipal(blackPrincipal);
         room.setWhitePrincipal(whitePrincipal);
         return room;
@@ -77,8 +77,8 @@ class GameArchiveServiceTest {
                 .board(new int[15][15])
                 .moveHistory(new ArrayList<>(List.of(112)))
                 .build();
-        room.bindMember("2", "uuidB", longName);
-        room.bindMember("3", "uuidW", "백돌");
+        room.bindMember("2", "uuidB");
+        room.bindMember("3", "uuidW");
         room.setBlackPrincipal("2");
         room.setWhitePrincipal("3");
 
