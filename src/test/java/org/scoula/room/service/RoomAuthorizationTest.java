@@ -61,8 +61,8 @@ class RoomAuthorizationTest {
                 .isPlaying(true)
                 .ready(0)
                 .build();
-        room.bindMember(BLACK, "p-black", "흑돌");
-        room.bindMember(WHITE, "p-white", "백돌");
+        room.bindMember(BLACK, "p-black");
+        room.bindMember(WHITE, "p-white");
         room.setBlackPlayer("p-black");
         room.setBlackPrincipal(BLACK);
         room.setWhitePrincipal(WHITE);

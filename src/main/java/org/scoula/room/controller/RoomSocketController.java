@@ -40,10 +40,21 @@ public class RoomSocketController {
 
         Map<String, Object> attrs = headerAccessor.getSessionAttributes();
         if (attrs != null) {
+            // 이전 JOIN이 남긴 방 키에서 이 세션을 먼저 떼어낸다. 소켓 종료 시 해제되는 키는
+            // 마지막 attrs.roomId 하나뿐이라, 이 정리가 없으면 이전 방 키에 죽은 세션이 남아
+            // 그 방에서의 진짜 끊김이 "다른 탭 생존"으로 오인된다(레지스트리도 무한 증가).
+            String previousRoomId = (String) attrs.get("roomId");
+            if (previousRoomId != null && !previousRoomId.equals(roomId)) {
+                webSocketEventListener.releaseSession(principalName, previousRoomId, headerAccessor.getSessionId());
+            }
             attrs.put("roomId", roomId);
             attrs.put("playerId", sender.id());
             if (principalName != null) attrs.put("principal", principalName);
         }
+
+        // 중복 탭 안전망: (principal, roomId)별 활성 세션을 등록해 두면
+        // 한 탭만 닫혔을 때 유예/몰수가 잘못 발동하지 않는다.
+        webSocketEventListener.registerSession(principalName, roomId, headerAccessor.getSessionId());
 
         MessageType type = isReconnect ? MessageType.RECONNECT : MessageType.JOIN;
         roomBroadcaster.broadcast(roomId,

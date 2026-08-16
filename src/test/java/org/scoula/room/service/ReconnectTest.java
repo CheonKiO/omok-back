@@ -58,7 +58,7 @@ class ReconnectTest {
                 .turn(1)
                 .isPlaying(true)
                 .build();
-        room.bindMember(PRINCIPAL_A, playerId, "흑돌");
+        room.bindMember(PRINCIPAL_A, playerId);
         return room;
     }
 
