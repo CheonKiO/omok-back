@@ -46,6 +46,12 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'com.h2database:h2'
+
+    // 실제 MySQL에 Flyway 마이그레이션을 적용해 스키마 드리프트를 잡는 IT용 (#27).
+    // Docker가 있는 환경(CI)에서만 실행되고, 없으면 disabledWithoutDocker로 스킵된다.
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:mysql'
 }
 
 test {
