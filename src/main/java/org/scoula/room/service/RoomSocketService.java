@@ -47,6 +47,9 @@ public class RoomSocketService {
     public void notifyGameStart(String roomId) {
         Room room = roomService.getRoom(roomId);
         synchronized (room) {
+            // 이미 진행 중인 대국을 다시 시작(initGame)하면 board가 리셋되고 흑/백이 재배정된다.
+            // ready==2 스케줄 이후의 지연 창에서 상태가 바뀔 수 있으므로 실행 시점에 재확인한다.
+            if (room.isPlaying()) return;
             List<Player> players = room.getPlayers();
             if (players.size() != 2) return;
             // 자리 = 멤버 principal. 흑/백은 서로 다른 두 멤버 principal에서 직접 배정한다
@@ -82,6 +85,9 @@ public class RoomSocketService {
         if (room == null) return;
         synchronized (room) {
             if (!room.isMember(principal)) return;
+            // 진행 중인 대국에서 READY를 재수신하면 카운터가 다시 2에 도달해 notifyGameStart가
+            // 판을 리셋할 수 있다. 프론트가 버튼을 숨긴다는 가정에 의존하지 않고 서버가 막는다.
+            if (room.isPlaying()) return;
             room.setReady(room.getReady() + 1);
 
             broadcast(roomId, RoomResponseMessage.builder()
