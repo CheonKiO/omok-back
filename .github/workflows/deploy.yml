@@ -22,6 +22,16 @@ jobs:
       - name: Build JAR (테스트 포함 — 실패 시 배포 중단)
         run: ./gradlew clean build
 
+      - name: Backup current JAR
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 158.180.91.135
+          username: ubuntu
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            # scp가 ROOT.jar를 덮어쓰기 전에 현재 버전을 보존한다(첫 배포엔 없을 수 있음).
+            cp -f /home/ubuntu/ROOT.jar /home/ubuntu/ROOT.jar.bak 2>/dev/null || true
+
       - name: Copy JAR to server
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -32,14 +42,32 @@ jobs:
           target: /home/ubuntu/
           strip_components: 2
 
-      - name: Deploy and restart app
+      - name: Deploy, health-check, rollback on failure
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: 158.180.91.135
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          command_timeout: 90s
+          command_timeout: 180s
           script: |
             sudo systemctl restart omok
-            # 헬스체크 — 부팅 실패 시 배포를 실패 처리 (green CI / dead prod 방지)
-            curl --retry 30 --retry-delay 2 --retry-connrefused -fsS http://localhost:8080/api/rooms > /dev/null
+            # 헬스체크(콜드 부팅+Flyway 여유). 성공하면 배포 확정.
+            if curl --retry 30 --retry-delay 2 --retry-connrefused -fsS http://localhost:8080/api/rooms > /dev/null; then
+              echo "healthcheck OK — deploy confirmed"
+              exit 0
+            fi
+            # 실패 → 이전 JAR로 롤백(깨진 JAR로 prod가 죽은 채 방치되는 것 방지).
+            echo "healthcheck FAILED — rolling back to previous JAR"
+            if [ -f /home/ubuntu/ROOT.jar.bak ]; then
+              mv -f /home/ubuntu/ROOT.jar.bak /home/ubuntu/ROOT.jar
+              sudo systemctl restart omok
+              if curl --retry 15 --retry-delay 2 --retry-connrefused -fsS http://localhost:8080/api/rooms > /dev/null; then
+                echo "rolled back — prod running previous JAR"
+              else
+                echo "ROLLBACK ALSO FAILED — manual intervention required"
+              fi
+            else
+              echo "no backup JAR to roll back to (first deploy?)"
+            fi
+            # 어느 경로든 이번 배포는 실패로 처리한다.
+            exit 1
