@@ -35,6 +35,10 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         if (bearer != null && bearer.startsWith("Bearer ")) {
             String token = bearer.substring(7);
             try {
+                // access 토큰만 principal로 바인딩(refresh 토큰 재사용 차단).
+                if (!jwtProvider.isAccessToken(token)) {
+                    return message;
+                }
                 String subject = jwtProvider.getSubject(token);
                 Role role = jwtProvider.getRole(token);
                 var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));

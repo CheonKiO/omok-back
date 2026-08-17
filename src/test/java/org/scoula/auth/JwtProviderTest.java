@@ -5,7 +5,9 @@ import org.junit.jupiter.api.Test;
 import org.scoula.user.Role;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JwtProviderTest {
 
@@ -37,5 +39,29 @@ class JwtProviderTest {
         String token = jwt.createAccessToken("1", Role.USER);
         String tampered = token.substring(0, token.length() - 2) + "xx";
         assertThrows(JwtException.class, () -> jwt.getSubject(tampered));
+    }
+
+    @Test
+    void accessTokenIsTypedAccess() {
+        String token = jwt.createAccessToken("42", Role.USER);
+        assertEquals(JwtProvider.TYPE_ACCESS, jwt.getType(token));
+        assertTrue(jwt.isAccessToken(token));
+    }
+
+    @Test
+    void refreshTokenIsNotAccessType() {
+        String token = jwt.createRefreshToken("42");
+        assertEquals(JwtProvider.TYPE_REFRESH, jwt.getType(token));
+        assertFalse(jwt.isAccessToken(token), "refresh 토큰은 access로 인정되면 안 된다");
+    }
+
+    @Test
+    void blankSecretFailsFast() {
+        assertThrows(IllegalStateException.class, () -> new JwtProvider("", 1000, 1000));
+    }
+
+    @Test
+    void shortSecretFailsFast() {
+        assertThrows(IllegalStateException.class, () -> new JwtProvider("too-short", 1000, 1000));
     }
 }

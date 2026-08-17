@@ -53,4 +53,16 @@ class StompAuthChannelInterceptorTest {
 
         assertNull(accessor.getUser());
     }
+
+    @Test
+    void refreshTokenIsRejectedForConnect() {
+        // refresh 토큰을 Bearer로 보내도 principal이 바인딩되면 안 된다(#29).
+        String refresh = jwtProvider.createRefreshToken("42");
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.CONNECT);
+        accessor.setNativeHeader("Authorization", "Bearer " + refresh);
+
+        interceptor.preSend(connectMessage(accessor), channel);
+
+        assertNull(accessor.getUser());
+    }
 }
