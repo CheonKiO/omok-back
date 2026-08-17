@@ -201,4 +201,59 @@ class RoomMembershipTest {
             assertNotEquals(room.blackPrincipal(), room.whitePrincipal());
         }
     }
+
+    private RoomSocketService serviceFor(Room room) {
+        RoomService roomService = mock(RoomService.class);
+        when(roomService.getRoom(room.getRoomId())).thenReturn(room);
+        return new RoomSocketService(
+                mock(RoomBroadcaster.class), roomService, mock(GameService.class),
+                mock(org.scoula.game.GameArchiveService.class), mock(TaskScheduler.class));
+    }
+
+    private Room inProgressRoom() {
+        Player p1 = new Player("uuid-A", "흑돌");
+        Player p2 = new Player("uuid-B", "백돌");
+        Room room = Room.builder()
+                .roomId("room-1")
+                .players(new java.util.concurrent.CopyOnWriteArrayList<>(List.of(p1, p2)))
+                .turn(5)
+                .board(new int[15][15])
+                .isPlaying(true)
+                .ready(0)
+                .build();
+        room.bindMember("user:1", "uuid-A");
+        room.bindMember("user:2", "uuid-B");
+        room.setBlackPrincipal("user:1");
+        room.setWhitePrincipal("user:2");
+        room.getBoard()[7][7] = 3; // 이미 놓인 돌
+        return room;
+    }
+
+    // 진행 중 대국에서 READY 재수신은 무시되어야 한다(카운터 증가 금지 → 재시작 스케줄 방지).
+    @Test
+    void readyIgnoredWhileGameInProgress() {
+        Room room = inProgressRoom();
+        RoomSocketService service = serviceFor(room);
+
+        service.processReady("room-1", "user:1");
+        service.processReady("room-1", "user:2");
+
+        assertEquals(0, room.getReady(), "진행 중에는 ready 카운터가 오르지 않아야 한다");
+        assertTrue(room.isPlaying());
+        assertEquals(3, room.getBoard()[7][7], "판이 유지되어야 한다");
+        assertEquals(5, room.getTurn());
+    }
+
+    // notifyGameStart는 이미 진행 중이면 판을 리셋하지 않아야 한다(방어선).
+    @Test
+    void notifyGameStartDoesNotResetInProgressGame() {
+        Room room = inProgressRoom();
+        RoomSocketService service = serviceFor(room);
+
+        service.notifyGameStart("room-1");
+
+        assertEquals(3, room.getBoard()[7][7], "진행 중 판은 리셋되면 안 된다");
+        assertEquals(5, room.getTurn(), "turn이 1로 되돌아가면 안 된다");
+        assertTrue(room.isPlaying());
+    }
 }

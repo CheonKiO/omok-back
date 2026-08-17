@@ -21,7 +21,11 @@ class RenjuRuleEngineTest {
     }
 
     private void black(int[][] b, int x, int y) {
-        b[y][x] = 1;
+        b[y][x] = 1; // 홀수 = 흑
+    }
+
+    private void white(int[][] b, int x, int y) {
+        b[y][x] = 2; // 짝수 = 백
     }
 
     private int idx(int x, int y) {
@@ -102,5 +106,60 @@ class RenjuRuleEngineTest {
         black(b, 6, 7);
         black(b, 7, 7);
         assertTrue(engine.isForbidden(b, idx(5, 7)), "흑 6목(장목)은 금수");
+    }
+
+    // ── 대각선 승리(흑, 정확히 5목) ──
+    // 기존 픽스처가 전부 가로/세로라 dx·dy 동시 비영(대각) 경로가 미검증이었다.
+    @Test
+    void diagonalFiveIsWinForBlack() {
+        int[][] b = board();
+        black(b, 3, 3);
+        black(b, 4, 4);
+        black(b, 5, 5);
+        black(b, 6, 6);
+        black(b, 7, 7);
+        assertTrue(engine.isWin(b, idx(7, 7)), "대각선 5목은 흑 승리");
+    }
+
+    // ── 대각선 3-3은 금수 ──
+    @Test
+    void diagonalDoubleThreeIsForbidden() {
+        int[][] b = board();
+        black(b, 6, 6); // 주대각(↘)
+        black(b, 8, 8);
+        black(b, 6, 8); // 반대각(↗)
+        black(b, 8, 6);
+        assertTrue(engine.isForbidden(b, idx(7, 7)),
+                "두 대각 방향의 열린 삼 = 진짜 3-3, 금수여야 한다");
+    }
+
+    // ── 승리 비대칭: 흑은 정확히 5목만 승리(6목=장목은 승리 아님) ──
+    @Test
+    void blackOverlineIsNotWin() {
+        int[][] b = board();
+        for (int x = 2; x <= 7; x++) black(b, x, 7); // 6목
+        assertFalse(engine.isWin(b, idx(4, 7)),
+                "흑 6목(장목)은 isWin이 아니다(정확히 5목만 승리)");
+    }
+
+    // ── 승리 비대칭: 백은 5목 이상이면 승리(6목도 승리) ──
+    @Test
+    void whiteOverlineIsWin() {
+        int[][] b = board();
+        for (int x = 2; x <= 7; x++) white(b, x, 7); // 백 6목
+        assertTrue(engine.isWin(b, idx(4, 7)),
+                "백은 5목 이상이면 승리(장목 제한 없음)");
+    }
+
+    // ── 경계(모서리) + 대각선 승리: isValid 클리핑이 승리 판정을 깨지 않는지 ──
+    @Test
+    void cornerDiagonalFiveIsWin() {
+        int[][] b = board();
+        black(b, 0, 0);
+        black(b, 1, 1);
+        black(b, 2, 2);
+        black(b, 3, 3);
+        black(b, 4, 4);
+        assertTrue(engine.isWin(b, idx(4, 4)), "모서리에서 시작한 대각 5목도 승리");
     }
 }
