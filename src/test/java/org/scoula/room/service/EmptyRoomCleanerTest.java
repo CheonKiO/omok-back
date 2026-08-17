@@ -46,11 +46,44 @@ class EmptyRoomCleanerTest {
 
         Room active = svc.createRoom("active", null);
         active.getPlayers().add(new Player("p-1", "플레이어"));
-        // 오래됐어도 플레이어가 있으면 활성 방 → 보존
+        // 오래됐어도(생성시각) 최근 활동(lastActiveAt=now)이면 보존
         active.setCreatedAt(System.currentTimeMillis() - (EmptyRoomCleaner.TTL_MILLIS + 60_000));
 
         cleaner.cleanup();
 
-        assertNotNull(svc.getRoom(active.getRoomId()), "플레이어가 있는 방은 오래됐어도 보존되어야 한다");
+        assertNotNull(svc.getRoom(active.getRoomId()), "최근 활동한 방은 보존되어야 한다");
+    }
+
+    // #23: 게스트가 만든 1인 방이 오래 유휴하면 회수(방 무한 누적 OOM 방어).
+    @Test
+    void removesStaleOnePersonRoom() {
+        RoomServiceImpl svc = new RoomServiceImpl();
+        EmptyRoomCleaner cleaner = new EmptyRoomCleaner(svc);
+
+        Room lonely = svc.createRoom("lonely", null);
+        lonely.getPlayers().add(new Player("p-1", "게스트"));
+        lonely.setPlaying(false);
+        lonely.setLastActiveAt(System.currentTimeMillis() - (EmptyRoomCleaner.IDLE_TTL_MILLIS + 60_000));
+
+        cleaner.cleanup();
+
+        assertNull(svc.getRoom(lonely.getRoomId()), "오래 유휴한 1인 방은 회수되어야 한다");
+    }
+
+    // 진행 중 대국은 유휴 판정 대상이 아니어야 한다(오래돼도 보존).
+    @Test
+    void preservesPlayingRoomEvenIfIdle() {
+        RoomServiceImpl svc = new RoomServiceImpl();
+        EmptyRoomCleaner cleaner = new EmptyRoomCleaner(svc);
+
+        Room playing = svc.createRoom("playing", null);
+        playing.getPlayers().add(new Player("p-1", "흑"));
+        playing.getPlayers().add(new Player("p-2", "백"));
+        playing.setPlaying(true);
+        playing.setLastActiveAt(System.currentTimeMillis() - (EmptyRoomCleaner.IDLE_TTL_MILLIS + 60_000));
+
+        cleaner.cleanup();
+
+        assertNotNull(svc.getRoom(playing.getRoomId()), "진행 중 대국은 회수하면 안 된다");
     }
 }

@@ -82,6 +82,7 @@ public class RoomSocketService {
         if (room == null) return;
         synchronized (room) {
             if (!room.isMember(principal)) return;
+            room.touch();
             room.setReady(room.getReady() + 1);
 
             broadcast(roomId, RoomResponseMessage.builder()

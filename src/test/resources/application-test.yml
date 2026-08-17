@@ -15,3 +15,8 @@ jwt:
   secret: test-secret-key-that-is-at-least-32-bytes-long!!
   access-exp-millis: 1800000
   refresh-exp-millis: 1209600000
+
+# 통합 테스트가 같은 IP로 다수의 인증 요청을 보내므로 레이트리밋을 사실상 끈다.
+auth:
+  ratelimit:
+    max-per-window: 1000000

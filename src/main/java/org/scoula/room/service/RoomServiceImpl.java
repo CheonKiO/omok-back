@@ -11,6 +11,10 @@ import java.util.concurrent.CopyOnWriteArrayList;
 @Service
 public class RoomServiceImpl implements RoomService {
 
+    // 전체 방 수 상한. 게스트 토큰을 무제한 찍어 방을 무한 누적시키는 DoS로부터 rooms 맵이
+    // 무한 증가(OOM)하는 것을 막는 최후 방어선. 정상 사용량보다 충분히 크게 잡는다.
+    static final int MAX_ROOMS = 500;
+
     private final Map<String, Room> rooms;
 
     public RoomServiceImpl() {
@@ -18,7 +22,13 @@ public class RoomServiceImpl implements RoomService {
     }
 
     @Override
+    public boolean isAtCapacity() {
+        return rooms.size() >= MAX_ROOMS;
+    }
+
+    @Override
     public Room createRoom(String title, String password) {
+        if (isAtCapacity()) return null; // 상한 초과 → 생성 거부(컨트롤러가 503)
         int SIZE = 15;
         int[][] board = new int[SIZE][SIZE];
         Room room = Room.builder()
@@ -50,11 +60,13 @@ public class RoomServiceImpl implements RoomService {
 
         if (room.getPlayers().contains(player)) {
             room.bindMember(principal, player.id()); // 재입장: principal 재확인
+            room.touch();
             return 1; // 이미 참여
         }
         room.getPlayers().add(player);
         // 인증 principal을 자리에 기록. payload player.id/name은 표시용일 뿐.
         room.bindMember(principal, player.id());
+        room.touch();
         return 1;
     }
 

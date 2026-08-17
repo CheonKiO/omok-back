@@ -5,6 +5,8 @@ import org.scoula.room.domain.Room;
 
 public interface RoomService {
     public Room createRoom(String title, String password);
+    /** 전체 방 수가 상한에 도달했는지(방 생성 DoS로 인한 OOM 방어). */
+    public boolean isAtCapacity();
     /**
      * 1=성공, 0=방없음/꽉참, -1=비밀번호 불일치.
      * principal은 인증된 호출자의 신원(JWT subject). 성공 시 자리에 기록된다.

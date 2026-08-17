@@ -33,6 +33,18 @@ public class Room {
     @Builder.Default
     private long createdAt = System.currentTimeMillis();
 
+    // 마지막 활동 시각(epoch ms). 입장·착수·준비 시 갱신. 진행 중이 아닌 1인/유휴 방을
+    // 오래 방치되면 GC하는 기준(EmptyRoomCleaner). '상대 기다리는 방'을 즉시 지우지 않도록
+    // createdAt이 아닌 실제 활동 기준을 쓴다.
+    @JsonIgnore
+    @Builder.Default
+    private long lastActiveAt = System.currentTimeMillis();
+
+    /** 활동 발생 시 유휴 GC 타이머를 되돌린다. */
+    public void touch() {
+        this.lastActiveAt = System.currentTimeMillis();
+    }
+
     // 신원(A''): 자리 소유는 인증 principal(JWT subject)을 '키'로 기록한다.
     // 키가 principal이므로 클라가 보낸 player.id로는 남의 자리를 덮어쓰거나 탈취할 수 없다.
     // 값(playerId)은 표시/reconnect 라벨일 뿐 신원이 아니다. bindMember는 인증 경로에서만 호출.
@@ -57,6 +69,7 @@ public class Room {
     /** 착수를 놓인 순서대로 기록한다. */
     public void recordMove(int index) {
         moveHistory.add(index);
+        touch();
     }
 
     /**

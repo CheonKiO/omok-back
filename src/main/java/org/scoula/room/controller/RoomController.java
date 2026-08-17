@@ -63,6 +63,10 @@ public class RoomController {
             log.warn("[ROOM_CREATE_RATELIMIT] principal={} title=\"{}\"", principal, title);
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body("Too many room creations. Try again later.");
         }
+        if (roomService.isAtCapacity()) {
+            log.warn("[ROOM_CAPACITY] principal={} title=\"{}\"", principal, title);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body("Server room capacity reached. Try again later.");
+        }
         Room room = roomService.createRoom(title, password);
         if (room == null) {
             log.error("[ROOM_CREATE_FAIL] title=\"{}\"", title);
