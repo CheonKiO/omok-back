@@ -29,6 +29,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
             try {
+                // access 토큰만 인가에 허용한다. refresh 토큰을 Bearer로 보내면
+                // 30분 만료를 우회해 14일 유효 토큰으로 상시 접근하게 된다.
+                if (!jwtProvider.isAccessToken(token)) {
+                    filterChain.doFilter(request, response);
+                    return;
+                }
                 String subject = jwtProvider.getSubject(token);
                 Role role = jwtProvider.getRole(token);
                 var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
